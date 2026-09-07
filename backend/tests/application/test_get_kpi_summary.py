@@ -7,70 +7,15 @@ changement d'interface ou de base.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 
-from agentscope.application.ports.trace_read import (
-    ModelCallRecord,
-    SessionRecord,
-    ToolCallRecord,
-    TraceFilter,
-)
+from agentscope.application.ports.trace_read import TraceFilter
 from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.domain.metrics.catalog import IndicatorValue
+from tests.application.builders import CLAUDE, CODEX, model_call, session, tool_call
 from tests.fakes.trace_read import InMemoryTraceRead
-
-CLAUDE = "tracelab-claude"
-CODEX = "tracelab-codex"
-
-
-def _session(session_id: str, source: str = CLAUDE, day: int = 1) -> SessionRecord:
-    return SessionRecord(
-        session_id=session_id,
-        source=source,
-        agent="claude-code" if source == CLAUDE else "codex",
-        started_at=datetime(2026, 9, day, 10, 0),
-        ended_at=datetime(2026, 9, day, 10, 30),
-    )
-
-
-def _model_call(
-    session_id: str,
-    source: str = CLAUDE,
-    day: int = 1,
-    input_tokens: int | None = 100,
-    cache_creation_tokens: int | None = None,
-    model: str | None = "claude-opus-5",
-) -> ModelCallRecord:
-    return ModelCallRecord(
-        session_id=session_id,
-        source=source,
-        agent="claude-code" if source == CLAUDE else "codex",
-        model=model,
-        occurred_at=datetime(2026, 9, day, 10, 5),
-        input_tokens=input_tokens,
-        output_tokens=None,
-        cache_creation_tokens=cache_creation_tokens,
-    )
-
-
-def _tool_call(
-    session_id: str,
-    source: str = CLAUDE,
-    day: int = 1,
-    is_error: bool | None = False,
-    latency_ms: int | None = 100,
-    tool_name: str = "read_file",
-) -> ToolCallRecord:
-    return ToolCallRecord(
-        session_id=session_id,
-        source=source,
-        tool_name=tool_name,
-        occurred_at=datetime(2026, 9, day, 10, 6),
-        is_error=is_error,
-        latency_ms=latency_ms,
-    )
 
 
 def _by_key(values: tuple[IndicatorValue, ...]) -> dict[str, IndicatorValue]:
@@ -79,7 +24,7 @@ def _by_key(values: tuple[IndicatorValue, ...]) -> dict[str, IndicatorValue]:
 
 def test_chaque_indicateur_est_livre_avec_sa_definition() -> None:
     """Un chiffre sans définition n'est pas publiable : l'énoncé l'exige."""
-    use_case = GetKpiSummary(InMemoryTraceRead(sessions=[_session("s1")]))
+    use_case = GetKpiSummary(InMemoryTraceRead(sessions=[session("s1")]))
 
     for indicator in use_case.execute(TraceFilter()):
         assert indicator.definition.computation
@@ -91,8 +36,8 @@ def test_chaque_indicateur_est_livre_avec_sa_definition() -> None:
 def test_denombre_les_sessions_et_les_appels_au_modele() -> None:
     use_case = GetKpiSummary(
         InMemoryTraceRead(
-            sessions=[_session("s1"), _session("s2")],
-            model_calls=[_model_call("s1"), _model_call("s1"), _model_call("s2")],
+            sessions=[session("s1"), session("s2")],
+            model_calls=[model_call("s1"), model_call("s1"), model_call("s2")],
         )
     )
 
@@ -106,9 +51,9 @@ def test_somme_les_tokens_en_entree_en_ignorant_les_appels_sans_compteur() -> No
     use_case = GetKpiSummary(
         InMemoryTraceRead(
             model_calls=[
-                _model_call("s1", input_tokens=100),
-                _model_call("s1", input_tokens=None),
-                _model_call("s1", input_tokens=300),
+                model_call("s1", input_tokens=100),
+                model_call("s1", input_tokens=None),
+                model_call("s1", input_tokens=300),
             ]
         )
     )
@@ -126,8 +71,8 @@ def test_un_compteur_publie_par_aucune_source_reste_indisponible() -> None:
     use_case = GetKpiSummary(
         InMemoryTraceRead(
             model_calls=[
-                _model_call("s1", source=CODEX, cache_creation_tokens=None),
-                _model_call("s2", source=CODEX, cache_creation_tokens=None),
+                model_call("s1", source=CODEX, cache_creation_tokens=None),
+                model_call("s2", source=CODEX, cache_creation_tokens=None),
             ]
         )
     )
@@ -142,8 +87,8 @@ def test_un_indicateur_propre_a_une_source_est_signale_quand_on_melange_les_sour
     use_case = GetKpiSummary(
         InMemoryTraceRead(
             model_calls=[
-                _model_call("s1", source=CLAUDE, cache_creation_tokens=500),
-                _model_call("s2", source=CODEX, cache_creation_tokens=None),
+                model_call("s1", source=CLAUDE, cache_creation_tokens=500),
+                model_call("s2", source=CODEX, cache_creation_tokens=None),
             ]
         )
     )
@@ -158,12 +103,12 @@ def test_le_taux_derreur_exclut_les_appels_dont_lissue_est_inconnue() -> None:
     use_case = GetKpiSummary(
         InMemoryTraceRead(
             tool_calls=[
-                _tool_call("s1", is_error=True),
-                _tool_call("s1", is_error=False),
-                _tool_call("s1", is_error=False),
-                _tool_call("s1", is_error=False),
-                _tool_call("s1", is_error=None),
-                _tool_call("s1", is_error=None),
+                tool_call("s1", is_error=True),
+                tool_call("s1", is_error=False),
+                tool_call("s1", is_error=False),
+                tool_call("s1", is_error=False),
+                tool_call("s1", is_error=None),
+                tool_call("s1", is_error=None),
             ]
         )
     )
@@ -179,10 +124,10 @@ def test_la_latence_mediane_ignore_les_appels_sans_duree_mesuree() -> None:
     use_case = GetKpiSummary(
         InMemoryTraceRead(
             tool_calls=[
-                _tool_call("s1", latency_ms=10),
-                _tool_call("s1", latency_ms=None),
-                _tool_call("s1", latency_ms=30),
-                _tool_call("s1", latency_ms=20),
+                tool_call("s1", latency_ms=10),
+                tool_call("s1", latency_ms=None),
+                tool_call("s1", latency_ms=30),
+                tool_call("s1", latency_ms=20),
             ]
         )
     )
@@ -200,12 +145,12 @@ class TestFiltrage:
         return GetKpiSummary(
             InMemoryTraceRead(
                 sessions=[
-                    _session("s1", source=CLAUDE, day=1),
-                    _session("s2", source=CODEX, day=5),
+                    session("s1", source=CLAUDE, day=1),
+                    session("s2", source=CODEX, day=5),
                 ],
                 model_calls=[
-                    _model_call("s1", source=CLAUDE, day=1, input_tokens=100),
-                    _model_call("s2", source=CODEX, day=5, input_tokens=700),
+                    model_call("s1", source=CLAUDE, day=1, input_tokens=100),
+                    model_call("s2", source=CODEX, day=5, input_tokens=700),
                 ],
             )
         )

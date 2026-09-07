@@ -43,6 +43,14 @@ class TraceFilter:
     since: date | None = None
     until: date | None = None
 
+    session_ids: tuple[str, ...] = field(default_factory=tuple)
+    """Restreint le périmètre à des sessions nommées.
+
+    C'est ce qui rend le retour d'un graphique vers les enregistrements uniforme : un clic
+    sur une barre ou un point produit la liste des sessions concernées, qu'il suffit de
+    repasser en filtre. Le détail d'une session n'est qu'un cas particulier à un élément.
+    """
+
     def __post_init__(self) -> None:
         if self.since and self.until and self.since > self.until:
             raise ValueError(

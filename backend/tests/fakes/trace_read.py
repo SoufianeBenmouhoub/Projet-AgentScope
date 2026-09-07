@@ -36,6 +36,7 @@ class InMemoryTraceRead(TraceReadPort):
             for record in self._sessions
             if _matches_source(record.source, filters)
             and _matches_agent(record.agent, filters)
+            and _matches_session(record.session_id, filters)
             and _matches_period(record.started_at, filters)
         )
 
@@ -46,6 +47,7 @@ class InMemoryTraceRead(TraceReadPort):
             if _matches_source(record.source, filters)
             and _matches_agent(record.agent, filters)
             and _matches_model(record.model, filters)
+            and _matches_session(record.session_id, filters)
             and _matches_period(record.occurred_at, filters)
         )
 
@@ -54,12 +56,17 @@ class InMemoryTraceRead(TraceReadPort):
             record
             for record in self._tool_calls
             if _matches_source(record.source, filters)
+            and _matches_session(record.session_id, filters)
             and _matches_period(record.occurred_at, filters)
         )
 
 
 def _matches_source(source: str, filters: TraceFilter) -> bool:
     return not filters.sources or source in filters.sources
+
+
+def _matches_session(session_id: str, filters: TraceFilter) -> bool:
+    return not filters.session_ids or session_id in filters.session_ids
 
 
 def _matches_agent(agent: str, filters: TraceFilter) -> bool:
