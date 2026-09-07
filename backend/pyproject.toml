@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentscope"
+version = "0.1.0"
+description = "Exploration normalisée de traces d'agents de développement IA"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    "duckdb>=1.1",
+    "httpx>=0.27",
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["agentscope", "tests"]
+# Sans cette ligne, le dossier local « alembic/ » ferait classer la bibliothèque alembic
+# comme code du projet, et le tri des imports de alembic/env.py deviendrait incohérent.
+known-third-party = ["alembic"]
