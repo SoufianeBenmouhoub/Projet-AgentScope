@@ -17,6 +17,7 @@ from fastapi import HTTPException, Query, Request
 from agentscope.application.container import Container
 from agentscope.application.ports.trace_read import TraceFilter
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_filter_options import GetFilterOptions
 from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
@@ -51,6 +52,10 @@ def provide_get_activity_series(request: Request) -> GetActivitySeries:
 
 def provide_get_session_detail(request: Request) -> GetSessionDetail:
     return provide_container(request).get_session_detail
+
+
+def provide_get_filter_options(request: Request) -> GetFilterOptions:
+    return provide_container(request).get_filter_options
 
 
 def provide_trace_filter(

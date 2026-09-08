@@ -34,6 +34,27 @@ class TestDefinitions:
             assert definition["comparability"] in {"comparable", "source_specific"}
 
 
+class TestFilterOptions:
+    def test_expose_les_valeurs_disponibles_pour_les_filtres(self) -> None:
+        client = build_client(
+            sessions=[session("s1", source=CLAUDE), session("s2", source=CODEX)],
+            model_calls=[model_call("s1", model="claude-opus-5")],
+        )
+
+        payload = client.get("/api/v1/metrics/filters").json()
+
+        assert payload["sources"] == [CLAUDE, CODEX]
+        assert payload["models"] == ["claude-opus-5"]
+        assert payload["first_day"] == "2026-09-01"
+        assert payload["is_empty"] is False
+
+    def test_signale_quil_ny_a_rien_a_filtrer_sans_donnees(self) -> None:
+        payload = build_client().get("/api/v1/metrics/filters").json()
+
+        assert payload["is_empty"] is True
+        assert payload["first_day"] is None
+
+
 class TestSummary:
     def test_expose_les_indicateurs_avec_leur_definition(self) -> None:
         client = build_client(

@@ -13,17 +13,20 @@ from fastapi import APIRouter, Depends
 
 from agentscope.application.ports.trace_read import TraceFilter
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_filter_options import GetFilterOptions
 from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.domain.metrics.catalog import INDICATORS
 from agentscope.interfaces.api.dependencies import (
     provide_get_activity_series,
+    provide_get_filter_options,
     provide_get_kpi_summary,
     provide_get_tool_breakdown,
     provide_trace_filter,
 )
 from agentscope.interfaces.api.schemas.metrics import (
     ActivitySeriesResponse,
+    FilterOptionsResponse,
     IndicatorCatalogResponse,
     IndicatorDefinitionResponse,
     IndicatorResponse,
@@ -46,6 +49,18 @@ def read_indicator_definitions() -> IndicatorCatalogResponse:
     return IndicatorCatalogResponse(
         definitions=[IndicatorDefinitionResponse.from_domain(item) for item in INDICATORS]
     )
+
+
+@router.get(
+    "/filters",
+    response_model=FilterOptionsResponse,
+    summary="Valeurs disponibles pour les filtres",
+)
+def read_filter_options(
+    use_case: Annotated[GetFilterOptions, Depends(provide_get_filter_options)],
+) -> FilterOptionsResponse:
+    """Dérivées des traces importées, jamais d'une liste écrite en dur."""
+    return FilterOptionsResponse.from_domain(use_case.execute())
 
 
 @router.get("/summary", response_model=KpiSummaryResponse, summary="Synthèse des indicateurs")
