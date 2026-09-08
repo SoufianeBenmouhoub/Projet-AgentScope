@@ -97,4 +97,4 @@ class DuckDBFileReader(FileReadPort):
             columns = [column[0] for column in result.description]
             rows = result.fetchall()
 
-        return [dict(zip(columns, row)) for row in rows]
+        return [dict(zip(columns, row, strict=True)) for row in rows]
