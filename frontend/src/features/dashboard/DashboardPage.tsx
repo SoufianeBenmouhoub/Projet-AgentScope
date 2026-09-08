@@ -1,7 +1,11 @@
 import { useState } from "react";
 
 import type { Indicator } from "../../shared/api/types";
-import { useFilterOptions, useKpiSummary } from "./api";
+import { useActivitySeries, useFilterOptions, useKpiSummary, useSummaryBySource, useToolBreakdown } from "./api";
+import { ActivityChart } from "./charts/ActivityChart";
+import { TokensBySourceChart } from "./charts/TokensBySourceChart";
+import { toSourceTokens } from "./charts/tokensBySourceOption";
+import { ToolBreakdownChart } from "./charts/ToolBreakdownChart";
 import "./dashboard.css";
 import { FilterBar } from "./FilterBar";
 import { isUnfiltered, NO_FILTERS, type TraceFilters } from "./filters";
@@ -27,6 +31,12 @@ export function DashboardPage() {
 
   const options = useFilterOptions();
   const summary = useKpiSummary(filters);
+  const activity = useActivitySeries(filters);
+  const tools = useToolBreakdown(filters);
+
+  // Les sources effectivement consultées : celles choisies, ou toutes si aucun choix.
+  const sources = filters.sources.length > 0 ? filters.sources : (options.data?.sources ?? []);
+  const bySource = useSummaryBySource(sources, filters);
 
   if (summary.isPending) {
     return <p className="dashboard__status">Chargement des indicateurs…</p>;
@@ -63,11 +73,28 @@ export function DashboardPage() {
             : "Aucune trace ne correspond aux filtres actifs. Élargissez le périmètre pour voir des résultats."}
         </p>
       ) : (
-        <div className="dashboard__indicators">
-          {summary.data.indicators.map((indicator) => (
-            <IndicatorCard key={indicator.definition.key} indicator={indicator} />
-          ))}
-        </div>
+        <>
+          <div className="dashboard__indicators">
+            {summary.data.indicators.map((indicator) => (
+              <IndicatorCard key={indicator.definition.key} indicator={indicator} />
+            ))}
+          </div>
+
+          <div className="dashboard__charts">
+            {activity.data && (
+              <ActivityChart series={activity.data} refreshing={activity.isFetching} />
+            )}
+            {tools.data && (
+              <ToolBreakdownChart breakdown={tools.data} refreshing={tools.isFetching} />
+            )}
+            {sources.length > 0 && !bySource.isPending && (
+              <TokensBySourceChart
+                rows={toSourceTokens(bySource.rows)}
+                refreshing={bySource.isFetching}
+              />
+            )}
+          </div>
+        </>
       )}
     </section>
   );

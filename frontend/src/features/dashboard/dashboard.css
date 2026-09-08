@@ -75,6 +75,77 @@
   margin-top: 1rem;
 }
 
+.dashboard__charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.chart {
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.chart__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+
+.chart__plot {
+  transition: opacity 120ms ease;
+}
+
+.chart__note,
+.chart__empty {
+  font-size: 0.8125rem;
+  color: #555;
+  margin: 0.5rem 0 0;
+}
+
+.chart__table {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.chart__table summary {
+  cursor: pointer;
+  color: #555;
+}
+
+.chart__table table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.chart__table th,
+.chart__table td {
+  text-align: left;
+  padding: 0.25rem 0.5rem 0.25rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.chart__table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .indicator {
   border: 1px solid #ddd;
   border-radius: 0.5rem;
@@ -140,9 +211,22 @@
 
 @media (prefers-color-scheme: dark) {
   .indicator,
+  .chart,
   .filters__group,
   .filters__reset {
     border-color: #444;
+  }
+
+  .chart__title,
+  .chart__note,
+  .chart__empty,
+  .chart__table summary {
+    color: #aaa;
+  }
+
+  .chart__table th,
+  .chart__table td {
+    border-bottom-color: #333;
   }
 
   .filters__group legend,
