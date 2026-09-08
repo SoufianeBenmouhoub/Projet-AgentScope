@@ -11,9 +11,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
+from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
+from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 
 
 @dataclass(frozen=True)
 class Container:
     get_system_status: GetSystemStatus
+    get_kpi_summary: GetKpiSummary
+    get_tool_breakdown: GetToolBreakdown
+    get_activity_series: GetActivitySeries
+    get_session_detail: GetSessionDetail

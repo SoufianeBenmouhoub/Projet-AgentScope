@@ -10,8 +10,13 @@ C'est aussi le seul module, avec `main.py`, autorisé à importer `infrastructur
 from __future__ import annotations
 
 from agentscope.application.container import Container
+from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
+from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
+from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.infrastructure.config.settings import Settings, get_settings
+from agentscope.infrastructure.persistence.empty_trace_read import EmptyTraceRead
 from agentscope.infrastructure.persistence.engine import build_engine
 from agentscope.infrastructure.persistence.sqlalchemy_database_health import (
     SqlAlchemyDatabaseHealth,
@@ -23,9 +28,18 @@ def build_container(settings: Settings | None = None) -> Container:
     settings = settings or get_settings()
     engine = build_engine(settings.database_url)
 
+    # Lecture des traces. Tant que le lot 2 n'a pas livré le stockage, l'application ne lit
+    # rien et l'annonce. Le jour où `SqlAlchemyTraceRead` existe, c'est cette ligne — et
+    # elle seule — qui change.
+    traces = EmptyTraceRead()
+
     return Container(
         get_system_status=GetSystemStatus(
             database_health=SqlAlchemyDatabaseHealth(engine),
             version=settings.app_version,
         ),
+        get_kpi_summary=GetKpiSummary(traces),
+        get_tool_breakdown=GetToolBreakdown(traces),
+        get_activity_series=GetActivitySeries(traces),
+        get_session_detail=GetSessionDetail(traces),
     )
