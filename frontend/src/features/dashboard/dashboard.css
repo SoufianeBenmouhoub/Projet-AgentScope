@@ -137,6 +137,112 @@
   font-variant-numeric: tabular-nums;
 }
 
+.dashboard__hint {
+  font-size: 0.8125rem;
+  color: #777;
+  margin: 0.75rem 0 0;
+}
+
+.sessions,
+.session {
+  margin-top: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.sessions__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sessions__header h3,
+.session__title {
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.sessions__header button {
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid #ccc;
+  border-radius: 0.375rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sessions__note {
+  font-size: 0.8125rem;
+  color: #777;
+  margin: 0.5rem 0 0;
+}
+
+.sessions__table,
+.session__events {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.sessions__table th,
+.sessions__table td,
+.session__events th,
+.session__events td {
+  text-align: left;
+  padding: 0.3125rem 0.75rem 0.3125rem 0;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.sessions__table td,
+.session__events td {
+  font-variant-numeric: tabular-nums;
+}
+
+.sessions__table tbody th button {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2a78d6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.sessions__row--selected {
+  background: rgba(42, 120, 214, 0.08);
+}
+
+.session__subtitle {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+  margin: 1rem 0 0;
+}
+
+.session__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.session__facts dt {
+  color: #777;
+}
+
+.session__facts dd {
+  margin: 0.125rem 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -212,9 +318,34 @@
 @media (prefers-color-scheme: dark) {
   .indicator,
   .chart,
+  .sessions,
+  .session,
   .filters__group,
-  .filters__reset {
+  .filters__reset,
+  .sessions__header button {
     border-color: #444;
+  }
+
+  .dashboard__hint,
+  .sessions__note,
+  .session__subtitle,
+  .session__facts dt {
+    color: #999;
+  }
+
+  .sessions__table th,
+  .sessions__table td,
+  .session__events th,
+  .session__events td {
+    border-bottom-color: #333;
+  }
+
+  .sessions__table tbody th button {
+    color: #3987e5;
+  }
+
+  .sessions__row--selected {
+    background: rgba(57, 135, 229, 0.14);
   }
 
   .chart__title,

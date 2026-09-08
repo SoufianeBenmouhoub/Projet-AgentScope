@@ -128,6 +128,32 @@ describe("répartition des outils", () => {
       usages.slice(MAX_TOOLS - 1).reduce((total, usage) => total + (usage.calls.value ?? 0), 0),
     );
   });
+
+  it("garde la barre « Autres » cliquable en regroupant les sessions repliées", () => {
+    const usages = Array.from({ length: MAX_TOOLS + 2 }, (_, index) => ({
+      ...aToolUsage(`outil-${index}`, 100 - index),
+      session_ids: [`s${index}`],
+    }));
+    const breakdown: ToolBreakdown = {
+      usages,
+      tool_calls_total: 1000,
+      distinct_tools: usages.length,
+    };
+
+    const autres = toBars(breakdown).at(-1);
+
+    expect(autres?.sessionIds).toEqual(["s10", "s11", "s9"]);
+  });
+
+  it("chaque outil porte les sessions où il apparaît", () => {
+    const breakdown: ToolBreakdown = {
+      usages: [{ ...aToolUsage("bash", 5), session_ids: ["s1", "s2"] }],
+      tool_calls_total: 5,
+      distinct_tools: 1,
+    };
+
+    expect(toBars(breakdown)[0].sessionIds).toEqual(["s1", "s2"]);
+  });
 });
 
 describe("tokens par source", () => {

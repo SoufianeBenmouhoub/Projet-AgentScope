@@ -40,3 +40,5 @@ export type ActivitySeries = Schemas["ActivitySeriesResponse"];
 
 export type SessionEvent = Schemas["SessionEventResponse"];
 export type SessionDetail = Schemas["SessionDetailResponse"];
+export type SessionSummary = Schemas["SessionSummaryResponse"];
+export type SessionList = Schemas["SessionListResponse"];

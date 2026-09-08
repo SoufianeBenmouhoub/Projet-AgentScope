@@ -7,6 +7,8 @@ import {
   anActivitySeries,
   anEmptyKpiSummary,
   anIndicator,
+  aSessionDetail,
+  aSessionList,
   aToolBreakdown,
   noFilterOptions,
   someFilterOptions,
@@ -15,16 +17,23 @@ import { renderWithProviders } from "../../test/renderWithProviders";
 import { calledUrls, stubFetch } from "../../test/stubFetch";
 import { DashboardPage } from "./DashboardPage";
 
-// jsdom n'a pas de canvas : on vérifie les données qui alimentent les graphiques
-// (chartOptions.test.ts) et l'écran autour d'eux, pas le rendu d'ECharts lui-même.
+// jsdom n'a pas de canvas : ECharts est remplacé par un bouton, ce qui permet de vérifier
+// le retour d'un graphique vers les sessions sans dépendre du rendu graphique lui-même.
+// Les données qui alimentent les graphiques sont testées dans chartOptions.test.ts.
 vi.mock("./charts/Chart", () => ({
-  Chart: () => <div data-testid="graphique" />,
+  Chart: ({ onSelect }: { onSelect?: (click: { dataIndex: number }) => void }) => (
+    <button type="button" data-testid="graphique" onClick={() => onSelect?.({ dataIndex: 0 })}>
+      graphique
+    </button>
+  ),
 }));
 
 const FILTERS = "/api/v1/metrics/filters";
 const SUMMARY = "/api/v1/metrics/summary";
 const ACTIVITY = "/api/v1/metrics/activity";
 const TOOLS = "/api/v1/metrics/tools";
+const SESSION_DETAIL = "/api/v1/sessions/";
+const SESSION_LIST = "/api/v1/sessions";
 
 function stubDashboard(summary: unknown, options = someFilterOptions()) {
   return stubFetch([
@@ -32,6 +41,9 @@ function stubDashboard(summary: unknown, options = someFilterOptions()) {
     { match: ACTIVITY, body: anActivitySeries() },
     { match: TOOLS, body: aToolBreakdown() },
     { match: SUMMARY, body: summary },
+    // Le détail avant la liste : « /api/v1/sessions/ » est plus spécifique.
+    { match: SESSION_DETAIL, body: aSessionDetail() },
+    { match: SESSION_LIST, body: aSessionList() },
   ]);
 }
 
@@ -230,6 +242,8 @@ describe("DashboardPage — visualisations", () => {
       },
       { match: TOOLS, body: aToolBreakdown() },
       { match: SUMMARY, body: aKpiSummary() },
+      { match: SESSION_DETAIL, body: aSessionDetail() },
+      { match: SESSION_LIST, body: aSessionList() },
     ]);
 
     renderWithProviders(<DashboardPage />);
@@ -237,5 +251,89 @@ describe("DashboardPage — visualisations", () => {
     await waitFor(() => {
       expect(screen.getByText(/faute d'horodatage/i)).toBeTruthy();
     });
+  });
+});
+
+describe("DashboardPage — retour du graphique vers les sessions", () => {
+  async function renderAndClickFirstChart() {
+    const fetchMock = stubDashboard(aKpiSummary());
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => expect(screen.getAllByTestId("graphique").length).toBeGreaterThan(0));
+    await userEvent.click(screen.getAllByTestId("graphique")[0]);
+
+    return fetchMock;
+  }
+
+  it("n'interroge pas les sessions tant qu'aucune sélection n'est faite", async () => {
+    const fetchMock = stubDashboard(aKpiSummary());
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => expect(screen.getAllByTestId("graphique").length).toBeGreaterThan(0));
+
+    expect(calledUrls(fetchMock).some((url) => url.includes(SESSION_LIST))).toBe(false);
+  });
+
+  it("affiche les sessions correspondantes après un clic dans un graphique", async () => {
+    await renderAndClickFirstChart();
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /sessions sélectionnées/i })).toBeTruthy();
+    });
+  });
+
+  it("dit d'où vient la sélection", async () => {
+    await renderAndClickFirstChart();
+
+    await waitFor(() => {
+      expect(screen.getByText(/journée du/i)).toBeTruthy();
+    });
+  });
+
+  it("repasse les identifiants de sessions en filtre, sans toucher au reste du dashboard", async () => {
+    const fetchMock = await renderAndClickFirstChart();
+
+    await waitFor(() => {
+      const sessionCalls = calledUrls(fetchMock).filter(
+        (url) => url.includes(SESSION_LIST) && !url.includes(SESSION_DETAIL),
+      );
+      expect(sessionCalls.at(-1)).toContain("session_id=s1");
+    });
+
+    // Les indicateurs, eux, restent sur le périmètre complet.
+    const summaryCalls = calledUrls(fetchMock).filter((url) => url.includes(SUMMARY));
+    expect(summaryCalls.every((url) => !url.includes("session_id"))).toBe(true);
+  });
+
+  it("ouvre le détail d'une session choisie dans la liste", async () => {
+    await renderAndClickFirstChart();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "s1" })).toBeTruthy());
+    await userEvent.click(screen.getByRole("button", { name: "s1" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /détail de la session s1/i })).toBeTruthy();
+    });
+    expect(screen.getByText("Chronologie")).toBeTruthy();
+  });
+
+  it("conserve dans la chronologie un événement non horodaté", async () => {
+    await renderAndClickFirstChart();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "s1" })).toBeTruthy());
+    await userEvent.click(screen.getByRole("button", { name: "s1" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("non horodatée")).toBeTruthy();
+    });
+  });
+
+  it("efface la sélection à la demande", async () => {
+    await renderAndClickFirstChart();
+
+    await waitFor(() => expect(screen.getByText(/effacer la sélection/i)).toBeTruthy());
+    await userEvent.click(screen.getByText(/effacer la sélection/i));
+
+    expect(screen.queryByRole("region", { name: /sessions sélectionnées/i })).toBeNull();
   });
 });

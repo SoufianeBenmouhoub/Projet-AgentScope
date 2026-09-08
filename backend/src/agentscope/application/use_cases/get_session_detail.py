@@ -5,11 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from agentscope.application.ports.trace_read import TraceFilter, TraceReadPort
-from agentscope.domain.metrics.aggregation import Aggregate, sum_of
+from agentscope.domain.metrics.aggregation import sum_of
 from agentscope.domain.metrics.session_detail import (
     SessionDetail,
     SessionEvent,
     SessionEventKind,
+    duration_between,
 )
 
 
@@ -71,7 +72,7 @@ class GetSessionDetail:
             agent=session.agent,
             started_at=session.started_at,
             ended_at=session.ended_at,
-            duration=_duration(session.started_at, session.ended_at),
+            duration=duration_between(session.started_at, session.ended_at),
             input_tokens=sum_of([call.input_tokens for call in model_calls], "tokens"),
             model_calls=len(model_calls),
             tool_calls=len(tool_calls),
@@ -87,19 +88,3 @@ def _chronological(event: SessionEvent) -> tuple[int, datetime]:
     if event.occurred_at is None:
         return (1, datetime.max)
     return (0, event.occurred_at)
-
-
-def _duration(started_at: datetime | None, ended_at: datetime | None) -> Aggregate:
-    """Durée de la session, indisponible si les horodatages manquent.
-
-    Une session dont on ne connaît pas les bornes n'a pas duré zéro seconde : on ne sait
-    simplement pas combien de temps elle a duré.
-    """
-    if started_at is None or ended_at is None or ended_at < started_at:
-        return Aggregate(value=None, unit="s", covered=0, total=1)
-    return Aggregate(
-        value=(ended_at - started_at).total_seconds(),
-        unit="s",
-        covered=1,
-        total=1,
-    )

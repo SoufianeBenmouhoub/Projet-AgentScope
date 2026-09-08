@@ -15,6 +15,8 @@ export interface ToolBar {
   name: string;
   calls: number;
   usage: ToolUsage | null;
+  /** Les sessions où cet outil apparaît : le point de départ du retour aux enregistrements. */
+  sessionIds: string[];
 }
 
 /**
@@ -26,23 +28,29 @@ export interface ToolBar {
 export function toBars(breakdown: ToolBreakdown): ToolBar[] {
   const usages = breakdown.usages;
 
+  const toBar = (usage: ToolUsage): ToolBar => ({
+    name: usage.tool_name,
+    calls: usage.calls.value ?? 0,
+    usage,
+    sessionIds: usage.session_ids,
+  });
+
   if (usages.length <= MAX_TOOLS) {
-    return usages.map((usage) => ({
-      name: usage.tool_name,
-      calls: usage.calls.value ?? 0,
-      usage,
-    }));
+    return usages.map(toBar);
   }
 
   const head = usages.slice(0, MAX_TOOLS - 1);
   const tail = usages.slice(MAX_TOOLS - 1);
 
   return [
-    ...head.map((usage) => ({ name: usage.tool_name, calls: usage.calls.value ?? 0, usage })),
+    ...head.map(toBar),
     {
       name: `Autres (${tail.length} outils)`,
       calls: tail.reduce((total, usage) => total + (usage.calls.value ?? 0), 0),
       usage: null,
+      // La barre repliée reste cliquable : elle mène aux sessions de tous les outils
+      // qu'elle regroupe.
+      sessionIds: [...new Set(tail.flatMap((usage) => usage.session_ids))].sort(),
     },
   ];
 }
