@@ -5,7 +5,49 @@
  * des données réellement importées.
  */
 
-import type { Aggregate, FilterOptions, Indicator, KpiSummary } from "../shared/api/types";
+import type {
+  ActivitySeries,
+  Aggregate,
+  FilterOptions,
+  Indicator,
+  KpiSummary,
+  ToolBreakdown,
+  ToolUsage,
+} from "../shared/api/types";
+
+export function anActivitySeries(overrides: Partial<ActivitySeries> = {}): ActivitySeries {
+  return {
+    points: [
+      { day: "2026-09-01", sessions: 2, model_calls: 10, tool_calls: 5, session_ids: ["s1"] },
+      { day: "2026-09-02", sessions: 1, model_calls: 4, tool_calls: 2, session_ids: ["s2"] },
+    ],
+    undated_sessions: 0,
+    undated_model_calls: 0,
+    undated_tool_calls: 0,
+    has_undated_records: false,
+    ...overrides,
+  };
+}
+
+export function aToolUsage(name: string, calls = 5): ToolUsage {
+  return {
+    tool_name: name,
+    calls: anAggregate({ value: calls, unit: "appels" }),
+    share: anAggregate({ value: 50, unit: "%" }),
+    error_rate: anAggregate({ value: 0, unit: "%" }),
+    median_latency: anAggregate({ value: 120, unit: "ms" }),
+    session_ids: ["s1"],
+  };
+}
+
+export function aToolBreakdown(overrides: Partial<ToolBreakdown> = {}): ToolBreakdown {
+  return {
+    usages: [aToolUsage("read_file", 6), aToolUsage("bash", 4)],
+    tool_calls_total: 10,
+    distinct_tools: 2,
+    ...overrides,
+  };
+}
 
 export function someFilterOptions(overrides: Partial<FilterOptions> = {}): FilterOptions {
   return {

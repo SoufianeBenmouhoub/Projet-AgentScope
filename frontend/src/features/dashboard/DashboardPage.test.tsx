@@ -1,11 +1,13 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   aKpiSummary,
+  anActivitySeries,
   anEmptyKpiSummary,
   anIndicator,
+  aToolBreakdown,
   noFilterOptions,
   someFilterOptions,
 } from "../../test/builders";
@@ -13,12 +15,22 @@ import { renderWithProviders } from "../../test/renderWithProviders";
 import { calledUrls, stubFetch } from "../../test/stubFetch";
 import { DashboardPage } from "./DashboardPage";
 
+// jsdom n'a pas de canvas : on vérifie les données qui alimentent les graphiques
+// (chartOptions.test.ts) et l'écran autour d'eux, pas le rendu d'ECharts lui-même.
+vi.mock("./charts/Chart", () => ({
+  Chart: () => <div data-testid="graphique" />,
+}));
+
 const FILTERS = "/api/v1/metrics/filters";
 const SUMMARY = "/api/v1/metrics/summary";
+const ACTIVITY = "/api/v1/metrics/activity";
+const TOOLS = "/api/v1/metrics/tools";
 
 function stubDashboard(summary: unknown, options = someFilterOptions()) {
   return stubFetch([
     { match: FILTERS, body: options },
+    { match: ACTIVITY, body: anActivitySeries() },
+    { match: TOOLS, body: aToolBreakdown() },
     { match: SUMMARY, body: summary },
   ]);
 }
@@ -170,5 +182,60 @@ describe("DashboardPage — filtres", () => {
       expect(screen.getByText(/aucune trace n'a encore été importée/i)).toBeTruthy();
     });
     expect(screen.queryByRole("form", { name: /filtres/i })).toBeNull();
+  });
+});
+
+describe("DashboardPage — visualisations", () => {
+  it("affiche les trois graphiques", async () => {
+    stubDashboard(aKpiSummary());
+
+    renderWithProviders(<DashboardPage />);
+
+    // Les trois graphiques n'arrivent pas ensemble : celui des tokens attend de connaître
+    // la liste des sources avant de pouvoir les interroger une par une.
+    await waitFor(() => {
+      expect(screen.getByText("Activité dans le temps")).toBeTruthy();
+      expect(screen.getByText("Répartition des appels d'outils")).toBeTruthy();
+      expect(screen.getByText("Tokens par source")).toBeTruthy();
+    });
+  });
+
+  it("propose une vue tableau sous chaque graphique", async () => {
+    stubDashboard(aKpiSummary());
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Voir les données")).toHaveLength(3);
+    });
+  });
+
+  it("rend chaque valeur du graphique atteignable dans son tableau", async () => {
+    stubDashboard(aKpiSummary());
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("columnheader", { name: "Appels au modèle" })).toBeTruthy();
+    });
+    expect(screen.getByRole("rowheader", { name: "read_file" })).toBeTruthy();
+  });
+
+  it("signale sous la courbe ce qu'elle ne peut pas montrer", async () => {
+    stubFetch([
+      { match: FILTERS, body: someFilterOptions() },
+      {
+        match: ACTIVITY,
+        body: anActivitySeries({ undated_sessions: 4, has_undated_records: true }),
+      },
+      { match: TOOLS, body: aToolBreakdown() },
+      { match: SUMMARY, body: aKpiSummary() },
+    ]);
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/faute d'horodatage/i)).toBeTruthy();
+    });
   });
 });
