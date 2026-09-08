@@ -49,7 +49,8 @@ describe("AppLayout", () => {
   it("montre la page import sur la route /import", () => {
     renderApp("/import");
     expect(screen.getByRole("heading", { level: 1, name: /^import$/i })).toBeTruthy();
-    expect(screen.getByText(/jsonl, csv ou parquet/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /nouvel import/i })).toBeTruthy();
+    expect(screen.getByLabelText(/téléversement de fichier/i)).toBeTruthy();
   });
 
   it("montre la page système sur la route /system", () => {

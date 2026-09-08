@@ -1,17 +1,8 @@
-import { SystemStatusCard } from "../features/system/SystemStatusCard";
+import { RouterProvider } from "react-router-dom";
 
-/**
- * Coquille de l'application.
- *
- * Point d'entrée du **lot 6** : navigation, mise en page, et raccordement des écrans
- * d'import et de mapping. Le dashboard (lot 5) viendra se monter sous sa propre route.
- */
+import { router } from "./routes";
+
+/** Point d'entrée de l'interface : routing et mise en page commune. */
 export function App() {
-  return (
-    <main>
-      <h1>AgentScope</h1>
-      <p>Importer, vérifier, normaliser, explorer des traces d'agents de développement IA.</p>
-      <SystemStatusCard />
-    </main>
-  );
+  return <RouterProvider router={router} />;
 }
