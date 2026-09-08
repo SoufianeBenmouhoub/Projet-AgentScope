@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/metrics/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Valeurs disponibles pour les filtres
+         * @description Dérivées des traces importées, jamais d'une liste écrite en dur.
+         */
+        get: operations["read_filter_options_api_v1_metrics_filters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/metrics/summary": {
         parameters: {
             query?: never;
@@ -179,6 +199,30 @@ export interface components {
              * @description Part couverte, de 0 à 1. Null si le périmètre est vide.
              */
             coverage: number | null;
+        };
+        /**
+         * FilterOptionsResponse
+         * @description Les valeurs sur lesquelles il est possible de filtrer, dérivées des traces importées.
+         */
+        FilterOptionsResponse: {
+            /** Sources */
+            sources: string[];
+            /** Agents */
+            agents: string[];
+            /** Models */
+            models: string[];
+            /**
+             * First Day
+             * @description Première journée observée. Null si aucun enregistrement n'est horodaté.
+             */
+            first_day: string | null;
+            /** Last Day */
+            last_day: string | null;
+            /**
+             * Is Empty
+             * @description Vrai quand aucune trace n'a été importée.
+             */
+            is_empty: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -380,6 +424,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IndicatorCatalogResponse"];
+                };
+            };
+        };
+    };
+    read_filter_options_api_v1_metrics_filters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterOptionsResponse"];
                 };
             };
         };

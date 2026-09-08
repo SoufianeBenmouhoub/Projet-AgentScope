@@ -30,6 +30,8 @@ export type Indicator = Schemas["IndicatorResponse"];
 export type KpiSummary = Schemas["KpiSummaryResponse"];
 export type IndicatorCatalog = Schemas["IndicatorCatalogResponse"];
 
+export type FilterOptions = Schemas["FilterOptionsResponse"];
+
 export type ToolUsage = Schemas["ToolUsageResponse"];
 export type ToolBreakdown = Schemas["ToolBreakdownResponse"];
 
