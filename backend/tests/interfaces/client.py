@@ -24,6 +24,8 @@ from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.application.use_cases.list_sessions import ListSessions
+from agentscope.application.use_cases.propose_mapping import ProposeMapping
+from agentscope.infrastructure.llm.fake import FakeMappingProposal
 from agentscope.interfaces.api.app import create_app
 from tests.fakes.database_health import FakeDatabaseHealth
 from tests.fakes.trace_read import InMemoryTraceRead
@@ -47,6 +49,9 @@ def build_client(
         get_system_status=GetSystemStatus(
             database_health=FakeDatabaseHealth(reachable=database_reachable),
             version=version,
+        ),
+        propose_mapping=ProposeMapping(
+            mapping_proposal=FakeMappingProposal(),
         ),
         get_kpi_summary=GetKpiSummary(traces),
         get_tool_breakdown=GetToolBreakdown(traces),

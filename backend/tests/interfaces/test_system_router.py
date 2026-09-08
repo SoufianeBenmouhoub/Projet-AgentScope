@@ -1,4 +1,9 @@
-"""Tests d'API : l'application est construite avec des doublures, sans base réelle."""
+"""Tests d'API : l'application est construite avec des doublures, sans base réelle.
+
+Le conteneur est monté par `tests/interfaces/client.py`, et non ici. Reconstruire un
+conteneur dans chaque fichier de test oblige à modifier tous ces fichiers dès qu'un lot
+ajoute un cas d'utilisation — ce qui est exactement ce qui vient d'arriver.
+"""
 
 from __future__ import annotations
 
