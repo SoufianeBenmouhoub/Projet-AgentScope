@@ -54,9 +54,7 @@ class DuckDBFileReader(FileReadPort):
         if resolved_format == "parquet":
             return f"SELECT * FROM read_parquet('{escaped_path}')"
 
-        raise ValueError(
-            f"Format de fichier non supporté : {resolved_format}"
-        )
+        raise ValueError(f"Format de fichier non supporté : {resolved_format}")
 
     @staticmethod
     def _resolve_format(
@@ -84,9 +82,7 @@ class DuckDBFileReader(FileReadPort):
         try:
             return formats[suffix]
         except KeyError as exc:
-            raise ValueError(
-                f"Impossible de déterminer le format du fichier : {path}"
-            ) from exc
+            raise ValueError(f"Impossible de déterminer le format du fichier : {path}") from exc
 
     @staticmethod
     def _execute(query: str) -> list[dict[str, Any]]:

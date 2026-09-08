@@ -13,8 +13,7 @@ def reader() -> DuckDBFileReader:
 def test_read_jsonl(reader: DuckDBFileReader, tmp_path: Path) -> None:
     path = tmp_path / "traces.jsonl"
     path.write_text(
-        '{"id": 1, "name": "Alice"}\n'
-        '{"id": 2, "name": "Bob"}\n',
+        '{"id": 1, "name": "Alice"}\n{"id": 2, "name": "Bob"}\n',
         encoding="utf-8",
     )
 
@@ -29,9 +28,7 @@ def test_read_jsonl(reader: DuckDBFileReader, tmp_path: Path) -> None:
 def test_read_csv(reader: DuckDBFileReader, tmp_path: Path) -> None:
     path = tmp_path / "traces.csv"
     path.write_text(
-        "id,name\n"
-        "1,Alice\n"
-        "2,Bob\n",
+        "id,name\n1,Alice\n2,Bob\n",
         encoding="utf-8",
     )
 
@@ -79,9 +76,7 @@ def test_sample_limits_number_of_records(
 ) -> None:
     path = tmp_path / "traces.jsonl"
     path.write_text(
-        '{"id": 1}\n'
-        '{"id": 2}\n'
-        '{"id": 3}\n',
+        '{"id": 1}\n{"id": 2}\n{"id": 3}\n',
         encoding="utf-8",
     )
 
@@ -113,8 +108,7 @@ def test_explicit_format_overrides_extension(
 ) -> None:
     path = tmp_path / "traces.data"
     path.write_text(
-        '{"id": 1}\n'
-        '{"id": 2}\n',
+        '{"id": 1}\n{"id": 2}\n',
         encoding="utf-8",
     )
 
