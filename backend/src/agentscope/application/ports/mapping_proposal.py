@@ -19,6 +19,7 @@ Deux choix structurants :
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 
@@ -61,3 +62,27 @@ class MappingProposalPort(ABC):
 
     @abstractmethod
     def propose_mapping(self, sample: ImportSample) -> MappingProposal: ...
+
+
+def build_import_sample(
+    records: Sequence[dict[str, object]],
+    source_format: str,
+    max_examples: int = 3,
+) -> ImportSample:
+    """Construit un échantillon à partir de quelques enregistrements bruts.
+
+    Récupère l'ensemble des champs observés, avec jusqu'à `max_examples` valeurs
+    d'exemple par champ, converties en texte.
+    """
+    examples_by_field: dict[str, list[str]] = {}
+    for record in records:
+        for key, value in record.items():
+            values = examples_by_field.setdefault(key, [])
+            if len(values) < max_examples:
+                values.append(str(value))
+
+    fields = tuple(
+        FieldSample(name=name, example_values=tuple(values))
+        for name, values in examples_by_field.items()
+    )
+    return ImportSample(source_format=source_format, fields=fields)
