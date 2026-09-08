@@ -24,11 +24,34 @@ echarts.use([
   CanvasRenderer,
 ]);
 
+/** Ce qu'un clic sur une marque du graphique fait remonter. */
+export interface ChartClick {
+  dataIndex: number;
+  seriesIndex: number;
+}
+
 interface Props {
   option: object;
   style?: React.CSSProperties;
+  /** Rend le graphique cliquable : c'est le point de départ du retour vers les sessions. */
+  onSelect?: (click: ChartClick) => void;
 }
 
-export function Chart({ option, style }: Props) {
-  return <ReactEChartsCore echarts={echarts} option={option} style={style} notMerge />;
+export function Chart({ option, style, onSelect }: Props) {
+  return (
+    <ReactEChartsCore
+      echarts={echarts}
+      option={option}
+      style={style}
+      notMerge
+      onEvents={
+        onSelect
+          ? {
+              click: (params: ChartClick) =>
+                onSelect({ dataIndex: params.dataIndex, seriesIndex: params.seriesIndex }),
+            }
+          : undefined
+      }
+    />
+  );
 }

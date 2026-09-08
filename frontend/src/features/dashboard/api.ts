@@ -13,6 +13,8 @@ import type {
   ActivitySeries,
   FilterOptions,
   KpiSummary,
+  SessionDetail,
+  SessionList,
   ToolBreakdown,
 } from "../../shared/api/types";
 import { withPath, type TraceFilters } from "./filters";
@@ -45,6 +47,29 @@ export function useActivitySeries(filters: TraceFilters) {
     queryKey: ["metrics", "activity", filters],
     queryFn: () => apiGet<ActivitySeries>(withPath("/api/v1/metrics/activity", filters)),
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Les sessions d'une sélection.
+ *
+ * Le drill-down passe par le même contrat que le reste du dashboard : les identifiants
+ * portés par un point de graphique sont simplement repassés en filtre.
+ */
+export function useSessions(filters: TraceFilters, enabled: boolean) {
+  return useQuery({
+    queryKey: ["sessions", "list", filters],
+    queryFn: () => apiGet<SessionList>(withPath("/api/v1/sessions", filters)),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+export function useSessionDetail(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["sessions", "detail", sessionId],
+    queryFn: () => apiGet<SessionDetail>(`/api/v1/sessions/${encodeURIComponent(sessionId!)}`),
+    enabled: sessionId !== null,
   });
 }
 

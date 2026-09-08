@@ -1,7 +1,15 @@
 import { useState } from "react";
 
 import type { Indicator } from "../../shared/api/types";
-import { useActivitySeries, useFilterOptions, useKpiSummary, useSummaryBySource, useToolBreakdown } from "./api";
+import {
+  useActivitySeries,
+  useFilterOptions,
+  useKpiSummary,
+  useSessionDetail,
+  useSessions,
+  useSummaryBySource,
+  useToolBreakdown,
+} from "./api";
 import { ActivityChart } from "./charts/ActivityChart";
 import { TokensBySourceChart } from "./charts/TokensBySourceChart";
 import { toSourceTokens } from "./charts/tokensBySourceOption";
@@ -10,6 +18,14 @@ import "./dashboard.css";
 import { FilterBar } from "./FilterBar";
 import { isUnfiltered, NO_FILTERS, type TraceFilters } from "./filters";
 import { IndicatorCard } from "./IndicatorCard";
+import { SessionDetail } from "./sessions/SessionDetail";
+import { SessionList } from "./sessions/SessionList";
+
+/** Ce qu'un clic dans un graphique met en sélection, et d'où il vient. */
+interface Selection {
+  sessionIds: string[];
+  origin: string;
+}
 
 /**
  * Y a-t-il seulement quelque chose à explorer ?
@@ -28,6 +44,8 @@ function isScopeEmpty(indicators: Indicator[]): boolean {
 
 export function DashboardPage() {
   const [filters, setFilters] = useState<TraceFilters>(NO_FILTERS);
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [openSessionId, setOpenSessionId] = useState<string | null>(null);
 
   const options = useFilterOptions();
   const summary = useKpiSummary(filters);
@@ -37,6 +55,27 @@ export function DashboardPage() {
   // Les sources effectivement consultées : celles choisies, ou toutes si aucun choix.
   const sources = filters.sources.length > 0 ? filters.sources : (options.data?.sources ?? []);
   const bySource = useSummaryBySource(sources, filters);
+
+  // La sélection n'entre que dans cette requête : un clic sur une barre montre les sessions
+  // concernées, il ne restreint pas les indicateurs de toute la page.
+  const sessions = useSessions(
+    { ...filters, sessionIds: selection?.sessionIds ?? [] },
+    selection !== null,
+  );
+
+  const detail = useSessionDetail(openSessionId);
+
+  function select(sessionIds: string[], origin: string) {
+    setSelection({ sessionIds, origin });
+    setOpenSessionId(null);
+  }
+
+  function changeFilters(next: TraceFilters) {
+    setFilters(next);
+    // Une sélection faite sur un périmètre qu'on vient de changer ne veut plus rien dire.
+    setSelection(null);
+    setOpenSessionId(null);
+  }
 
   if (summary.isPending) {
     return <p className="dashboard__status">Chargement des indicateurs…</p>;
@@ -58,7 +97,7 @@ export function DashboardPage() {
       <h2>Tableau de bord</h2>
 
       {options.data && (
-        <FilterBar options={options.data} filters={filters} onChange={setFilters} />
+        <FilterBar options={options.data} filters={filters} onChange={changeFilters} />
       )}
 
       {nothingImported ? (
@@ -82,10 +121,18 @@ export function DashboardPage() {
 
           <div className="dashboard__charts">
             {activity.data && (
-              <ActivityChart series={activity.data} refreshing={activity.isFetching} />
+              <ActivityChart
+                series={activity.data}
+                refreshing={activity.isFetching}
+                onSelect={select}
+              />
             )}
             {tools.data && (
-              <ToolBreakdownChart breakdown={tools.data} refreshing={tools.isFetching} />
+              <ToolBreakdownChart
+                breakdown={tools.data}
+                refreshing={tools.isFetching}
+                onSelect={select}
+              />
             )}
             {sources.length > 0 && !bySource.isPending && (
               <TokensBySourceChart
@@ -94,6 +141,25 @@ export function DashboardPage() {
               />
             )}
           </div>
+
+          <p className="dashboard__hint">
+            Cliquez sur une journée ou sur un outil pour retrouver les sessions correspondantes.
+          </p>
+
+          {selection && sessions.data && (
+            <SessionList
+              listing={sessions.data}
+              origin={selection.origin}
+              selectedId={openSessionId}
+              onSelect={setOpenSessionId}
+              onClear={() => {
+                setSelection(null);
+                setOpenSessionId(null);
+              }}
+            />
+          )}
+
+          {detail.data && <SessionDetail detail={detail.data} />}
         </>
       )}
     </section>

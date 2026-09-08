@@ -112,6 +112,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sessions du périmètre
+         * @description Accepte les mêmes filtres que le dashboard, `session_id` compris.
+         *
+         *     C'est ce qui permet de partir d'un point de graphique — qui porte ses identifiants de
+         *     sessions — et d'arriver aux enregistrements correspondants.
+         */
+        get: operations["list_sessions_api_v1_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions/{session_id}": {
         parameters: {
             query?: never;
@@ -324,6 +347,40 @@ export interface components {
             is_error: boolean | null;
             /** Latency Ms */
             latency_ms: number | null;
+        };
+        /** SessionListResponse */
+        SessionListResponse: {
+            /** Sessions */
+            sessions: components["schemas"]["SessionSummaryResponse"][];
+            /**
+             * Total
+             * @description Nombre de sessions du périmètre, y compris celles que la liste ne montre pas.
+             */
+            total: number;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /**
+         * SessionSummaryResponse
+         * @description Une session vue de loin, telle qu'elle apparaît dans une liste.
+         */
+        SessionSummaryResponse: {
+            /** Session Id */
+            session_id: string;
+            /** Source */
+            source: string;
+            /** Agent */
+            agent: string;
+            /** Started At */
+            started_at: string | null;
+            /** Ended At */
+            ended_at: string | null;
+            duration: components["schemas"]["AggregateResponse"];
+            /** Model Calls */
+            model_calls: number;
+            /** Tool Calls */
+            tool_calls: number;
+            input_tokens: components["schemas"]["AggregateResponse"];
         };
         /** SystemStatusResponse */
         SystemStatusResponse: {
@@ -561,6 +618,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivitySeriesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_api_v1_sessions_get: {
+        parameters: {
+            query?: {
+                /** @description Sources retenues. */
+                source?: string[] | null;
+                /** @description Agents retenus. */
+                agent?: string[] | null;
+                /** @description Modèles retenus. */
+                model?: string[] | null;
+                /** @description Sessions retenues. */
+                session_id?: string[] | null;
+                /** @description Début de période, inclus. */
+                since?: string | null;
+                /** @description Fin de période, incluse. */
+                until?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionListResponse"];
                 };
             };
             /** @description Validation Error */

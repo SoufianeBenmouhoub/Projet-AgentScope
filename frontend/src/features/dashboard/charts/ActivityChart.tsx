@@ -7,9 +7,12 @@ import { useChartTheme } from "./theme";
 export function ActivityChart({
   series,
   refreshing,
+  onSelect,
 }: {
   series: ActivitySeries;
   refreshing?: boolean;
+  /** Un clic sur une journée fait remonter ses sessions. */
+  onSelect?: (sessionIds: string[], origin: string) => void;
 }) {
   const theme = useChartTheme();
   const note = undatedNote(series);
@@ -49,6 +52,15 @@ export function ActivityChart({
         <Chart
           option={buildActivityOption(series, theme)}
           style={{ height: 260 }}
+          onSelect={
+            onSelect &&
+            (({ dataIndex }) => {
+              const point = series.points[dataIndex];
+              if (point) {
+                onSelect(point.session_ids, `journée du ${formatDay(point.day)}`);
+              }
+            })
+          }
         />
       )}
     </ChartCard>

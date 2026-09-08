@@ -14,6 +14,25 @@ class SessionEventKind(Enum):
     TOOL_CALL = "tool_call"
 
 
+def duration_between(started_at: datetime | None, ended_at: datetime | None) -> Aggregate:
+    """Durée d'une session, indisponible si ses bornes manquent.
+
+    Une session dont on ne connaît pas les horodatages n'a pas duré zéro seconde : on ne
+    sait simplement pas combien de temps elle a duré. Des bornes incohérentes — une fin
+    antérieure au début — sont traitées de la même façon, comme une information qu'on ne
+    peut pas exploiter plutôt que comme une durée négative.
+    """
+    if started_at is None or ended_at is None or ended_at < started_at:
+        return Aggregate(value=None, unit="s", covered=0, total=1)
+
+    return Aggregate(
+        value=(ended_at - started_at).total_seconds(),
+        unit="s",
+        covered=1,
+        total=1,
+    )
+
+
 @dataclass(frozen=True)
 class SessionEvent:
     """Un événement de la chronologie : une invocation du modèle ou un appel d'outil."""

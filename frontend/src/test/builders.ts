@@ -11,6 +11,9 @@ import type {
   FilterOptions,
   Indicator,
   KpiSummary,
+  SessionDetail,
+  SessionList,
+  SessionSummary,
   ToolBreakdown,
   ToolUsage,
 } from "../shared/api/types";
@@ -45,6 +48,63 @@ export function aToolBreakdown(overrides: Partial<ToolBreakdown> = {}): ToolBrea
     usages: [aToolUsage("read_file", 6), aToolUsage("bash", 4)],
     tool_calls_total: 10,
     distinct_tools: 2,
+    ...overrides,
+  };
+}
+
+export function aSessionSummary(sessionId = "s1"): SessionSummary {
+  return {
+    session_id: sessionId,
+    source: "tracelab-claude",
+    agent: "claude-code",
+    started_at: "2026-09-01T10:00:00",
+    ended_at: "2026-09-01T10:30:00",
+    duration: anAggregate({ value: 1800, unit: "s" }),
+    model_calls: 4,
+    tool_calls: 2,
+    input_tokens: anAggregate({ value: 900, unit: "tokens" }),
+  };
+}
+
+export function aSessionList(overrides: Partial<SessionList> = {}): SessionList {
+  return {
+    sessions: [aSessionSummary("s1")],
+    total: 1,
+    truncated: false,
+    ...overrides,
+  };
+}
+
+export function aSessionDetail(overrides: Partial<SessionDetail> = {}): SessionDetail {
+  return {
+    session_id: "s1",
+    source: "tracelab-claude",
+    agent: "claude-code",
+    started_at: "2026-09-01T10:00:00",
+    ended_at: "2026-09-01T10:30:00",
+    duration: anAggregate({ value: 1800, unit: "s" }),
+    input_tokens: anAggregate({ value: 900, unit: "tokens" }),
+    model_calls: 1,
+    tool_calls: 1,
+    failed_tool_calls: 0,
+    events: [
+      {
+        kind: "model_call",
+        label: "claude-opus-5",
+        occurred_at: "2026-09-01T10:05:00",
+        input_tokens: 900,
+        is_error: null,
+        latency_ms: null,
+      },
+      {
+        kind: "tool_call",
+        label: "bash",
+        occurred_at: null,
+        input_tokens: null,
+        is_error: null,
+        latency_ms: null,
+      },
+    ],
     ...overrides,
   };
 }

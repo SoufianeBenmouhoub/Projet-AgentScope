@@ -7,7 +7,52 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from agentscope.domain.metrics.session_detail import SessionDetail, SessionEvent
+from agentscope.domain.metrics.session_list import SessionList, SessionSummary
 from agentscope.interfaces.api.schemas.metrics import AggregateResponse
+
+
+class SessionSummaryResponse(BaseModel):
+    """Une session vue de loin, telle qu'elle apparaît dans une liste."""
+
+    session_id: str
+    source: str
+    agent: str
+    started_at: datetime | None
+    ended_at: datetime | None
+    duration: AggregateResponse
+    model_calls: int
+    tool_calls: int
+    input_tokens: AggregateResponse
+
+    @classmethod
+    def from_domain(cls, summary: SessionSummary) -> SessionSummaryResponse:
+        return cls(
+            session_id=summary.session_id,
+            source=summary.source,
+            agent=summary.agent,
+            started_at=summary.started_at,
+            ended_at=summary.ended_at,
+            duration=AggregateResponse.from_domain(summary.duration),
+            model_calls=summary.model_calls,
+            tool_calls=summary.tool_calls,
+            input_tokens=AggregateResponse.from_domain(summary.input_tokens),
+        )
+
+
+class SessionListResponse(BaseModel):
+    sessions: list[SessionSummaryResponse]
+    total: int = Field(
+        description="Nombre de sessions du périmètre, y compris celles que la liste ne montre pas."
+    )
+    truncated: bool
+
+    @classmethod
+    def from_domain(cls, listing: SessionList) -> SessionListResponse:
+        return cls(
+            sessions=[SessionSummaryResponse.from_domain(item) for item in listing.sessions],
+            total=listing.total,
+            truncated=listing.is_truncated,
+        )
 
 
 class SessionEventResponse(BaseModel):

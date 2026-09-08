@@ -17,6 +17,7 @@ from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
+from agentscope.application.use_cases.list_sessions import ListSessions
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
 
 
@@ -29,3 +30,4 @@ class Container:
     get_activity_series: GetActivitySeries
     get_session_detail: GetSessionDetail
     get_filter_options: GetFilterOptions
+    list_sessions: ListSessions

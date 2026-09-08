@@ -11,6 +11,15 @@ export interface TraceFilters {
   models: string[];
   since: string | null;
   until: string | null;
+
+  /**
+   * Restreint à des sessions nommées.
+   *
+   * Ce n'est pas un filtre que l'utilisateur coche : c'est ce que produit un clic dans un
+   * graphique. Le dashboard lui-même ne le renseigne jamais — seule la liste des sessions
+   * l'utilise, sinon un clic sur une barre restreindrait tous les indicateurs de la page.
+   */
+  sessionIds: string[];
 }
 
 export const NO_FILTERS: TraceFilters = {
@@ -19,6 +28,7 @@ export const NO_FILTERS: TraceFilters = {
   models: [],
   since: null,
   until: null,
+  sessionIds: [],
 };
 
 /** Un filtre vide signifie « tout » : c'est l'état d'ouverture du dashboard. */
@@ -28,7 +38,8 @@ export function isUnfiltered(filters: TraceFilters): boolean {
     filters.agents.length === 0 &&
     filters.models.length === 0 &&
     filters.since === null &&
-    filters.until === null
+    filters.until === null &&
+    filters.sessionIds.length === 0
   );
 }
 
@@ -45,6 +56,7 @@ export function toSearchParams(filters: TraceFilters): URLSearchParams {
   for (const source of [...filters.sources].sort()) params.append("source", source);
   for (const agent of [...filters.agents].sort()) params.append("agent", agent);
   for (const model of [...filters.models].sort()) params.append("model", model);
+  for (const sessionId of [...filters.sessionIds].sort()) params.append("session_id", sessionId);
 
   if (filters.since) params.set("since", filters.since);
   if (filters.until) params.set("until", filters.until);
