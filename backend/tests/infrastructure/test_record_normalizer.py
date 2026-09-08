@@ -32,12 +32,8 @@ def test_normalize_session_record():
     assert result.sessions[0].session_id == "session-123"
     assert result.sessions[0].source == "test-dataset"
     assert result.sessions[0].agent == "test-agent"
-    assert result.sessions[0].started_at == datetime.fromisoformat(
-        "2026-09-08T10:30:00+00:00"
-    )
-    assert result.sessions[0].ended_at == datetime.fromisoformat(
-        "2026-09-08T10:35:00+00:00"
-    )
+    assert result.sessions[0].started_at == datetime.fromisoformat("2026-09-08T10:30:00+00:00")
+    assert result.sessions[0].ended_at == datetime.fromisoformat("2026-09-08T10:35:00+00:00")
     assert result.model_calls == []
     assert result.tool_calls == []
     assert result.issues == []
