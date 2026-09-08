@@ -12,8 +12,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
+from agentscope.application.use_cases.propose_mapping import ProposeMapping
 
 
 @dataclass(frozen=True)
 class Container:
     get_system_status: GetSystemStatus
+    propose_mapping: ProposeMapping
+
