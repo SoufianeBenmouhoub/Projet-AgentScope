@@ -15,6 +15,7 @@ from agentscope.domain.metrics.activity import ActivityPoint, ActivitySeries
 from agentscope.domain.metrics.aggregation import Aggregate
 from agentscope.domain.metrics.breakdown import ToolBreakdown, ToolUsage
 from agentscope.domain.metrics.catalog import IndicatorDefinition, IndicatorValue
+from agentscope.domain.metrics.filter_options import FilterOptions
 
 
 class AggregateResponse(BaseModel):
@@ -102,6 +103,30 @@ class IndicatorCatalogResponse(BaseModel):
     """Le catalogue des définitions, consultable même sans aucune donnée importée."""
 
     definitions: list[IndicatorDefinitionResponse]
+
+
+class FilterOptionsResponse(BaseModel):
+    """Les valeurs sur lesquelles il est possible de filtrer, dérivées des traces importées."""
+
+    sources: list[str]
+    agents: list[str]
+    models: list[str]
+    first_day: date | None = Field(
+        description="Première journée observée. Null si aucun enregistrement n'est horodaté."
+    )
+    last_day: date | None
+    is_empty: bool = Field(description="Vrai quand aucune trace n'a été importée.")
+
+    @classmethod
+    def from_domain(cls, options: FilterOptions) -> FilterOptionsResponse:
+        return cls(
+            sources=list(options.sources),
+            agents=list(options.agents),
+            models=list(options.models),
+            first_day=options.first_day,
+            last_day=options.last_day,
+            is_empty=options.is_empty,
+        )
 
 
 class ToolUsageResponse(BaseModel):

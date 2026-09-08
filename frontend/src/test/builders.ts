@@ -5,7 +5,31 @@
  * des données réellement importées.
  */
 
-import type { Aggregate, Indicator, KpiSummary } from "../shared/api/types";
+import type { Aggregate, FilterOptions, Indicator, KpiSummary } from "../shared/api/types";
+
+export function someFilterOptions(overrides: Partial<FilterOptions> = {}): FilterOptions {
+  return {
+    sources: ["tracelab-claude", "tracelab-codex"],
+    agents: ["claude-code", "codex"],
+    models: ["claude-opus-5"],
+    first_day: "2026-09-01",
+    last_day: "2026-09-08",
+    is_empty: false,
+    ...overrides,
+  };
+}
+
+/** Ce que renvoie l'API tant qu'aucune trace n'a été importée. */
+export function noFilterOptions(): FilterOptions {
+  return {
+    sources: [],
+    agents: [],
+    models: [],
+    first_day: null,
+    last_day: null,
+    is_empty: true,
+  };
+}
 
 export function anAggregate(overrides: Partial<Aggregate> = {}): Aggregate {
   return {
