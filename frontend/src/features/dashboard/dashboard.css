@@ -1,0 +1,172 @@
+.dashboard__status,
+.dashboard__empty {
+  color: #555;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.filters__group {
+  border: 1px solid #ddd;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0;
+}
+
+.filters__group legend {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+}
+
+.filters__choice {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.filters__period {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.filters__period label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.filters__unavailable {
+  font-size: 0.8125rem;
+  color: #777;
+  margin: 0;
+  max-width: 22rem;
+}
+
+.filters__reset {
+  align-self: center;
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 0.375rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.filters__reset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dashboard__indicators {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.indicator {
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.indicator__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+  margin: 0;
+}
+
+.indicator__value {
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0.25rem 0 0;
+}
+
+/* Une mesure indisponible ne doit pas se lire comme un chiffre. */
+.indicator__value--unavailable {
+  font-size: 1.25rem;
+  color: #777;
+  font-style: italic;
+}
+
+.indicator__note,
+.indicator__warning {
+  font-size: 0.8125rem;
+  margin: 0.5rem 0 0;
+  color: #555;
+}
+
+.indicator__warning {
+  color: #8a5a00;
+}
+
+.indicator__definition {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.indicator__definition summary {
+  cursor: pointer;
+  color: #555;
+}
+
+.indicator__definition dl {
+  margin: 0.5rem 0 0;
+}
+
+.indicator__definition dt {
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.indicator__definition dd {
+  margin: 0.125rem 0 0;
+  color: #444;
+}
+
+@media (prefers-color-scheme: dark) {
+  .indicator,
+  .filters__group,
+  .filters__reset {
+    border-color: #444;
+  }
+
+  .filters__group legend,
+  .filters__unavailable {
+    color: #aaa;
+  }
+
+  .dashboard__status,
+  .dashboard__empty,
+  .indicator__label,
+  .indicator__note,
+  .indicator__definition summary {
+    color: #aaa;
+  }
+
+  .indicator__value--unavailable {
+    color: #999;
+  }
+
+  .indicator__warning {
+    color: #e0b050;
+  }
+
+  .indicator__definition dd {
+    color: #ccc;
+  }
+}

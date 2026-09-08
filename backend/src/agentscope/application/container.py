@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_filter_options import GetFilterOptions
 from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
@@ -27,3 +28,4 @@ class Container:
     get_tool_breakdown: GetToolBreakdown
     get_activity_series: GetActivitySeries
     get_session_detail: GetSessionDetail
+    get_filter_options: GetFilterOptions
