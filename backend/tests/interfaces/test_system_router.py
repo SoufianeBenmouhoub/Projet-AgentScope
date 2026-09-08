@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from agentscope.application.container import Container
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_filter_options import GetFilterOptions
 from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
@@ -31,6 +32,7 @@ def _client(*, database_reachable: bool) -> TestClient:
         get_tool_breakdown=GetToolBreakdown(traces),
         get_activity_series=GetActivitySeries(traces),
         get_session_detail=GetSessionDetail(traces),
+        get_filter_options=GetFilterOptions(traces),
     )
     return TestClient(create_app(container=container, version="0.1.0"))
 
