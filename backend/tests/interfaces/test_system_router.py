@@ -2,11 +2,43 @@
 
 from __future__ import annotations
 
-from tests.interfaces.client import build_client
+from fastapi.testclient import TestClient
+
+from agentscope.application.container import Container
+from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_filter_options import GetFilterOptions
+from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
+from agentscope.application.use_cases.get_session_detail import GetSessionDetail
+from agentscope.application.use_cases.get_system_status import GetSystemStatus
+from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
+from agentscope.application.use_cases.propose_mapping import ProposeMapping
+from agentscope.infrastructure.llm.fake import FakeMappingProposal
+from agentscope.infrastructure.persistence.empty_trace_read import EmptyTraceRead
+from agentscope.interfaces.api.app import create_app
+from tests.fakes.database_health import FakeDatabaseHealth
+
+
+def _client(*, database_reachable: bool) -> TestClient:
+    traces = EmptyTraceRead()
+    container = Container(
+        get_system_status=GetSystemStatus(
+            database_health=FakeDatabaseHealth(reachable=database_reachable),
+            version="0.1.0",
+        ),
+        propose_mapping=ProposeMapping(
+            mapping_proposal=FakeMappingProposal(),
+        ),
+        get_kpi_summary=GetKpiSummary(traces),
+        get_tool_breakdown=GetToolBreakdown(traces),
+        get_activity_series=GetActivitySeries(traces),
+        get_session_detail=GetSessionDetail(traces),
+        get_filter_options=GetFilterOptions(traces),
+    )
+    return TestClient(create_app(container=container, version="0.1.0"))
 
 
 def test_le_statut_est_expose_quand_tout_repond() -> None:
-    response = build_client(database_reachable=True).get("/api/v1/system/status")
+    response = _client(database_reachable=True).get("/api/v1/system/status")
 
     assert response.status_code == 200
     assert response.json() == {"version": "0.1.0", "database": "ok", "operational": True}
@@ -14,7 +46,7 @@ def test_le_statut_est_expose_quand_tout_repond() -> None:
 
 def test_le_statut_signale_un_stockage_injoignable_sans_echouer() -> None:
     """Une indisponibilité est une information à afficher, pas une erreur 500."""
-    response = build_client(database_reachable=False).get("/api/v1/system/status")
+    response = _client(database_reachable=False).get("/api/v1/system/status")
 
     assert response.status_code == 200
     assert response.json()["database"] == "unavailable"
@@ -23,7 +55,7 @@ def test_le_statut_signale_un_stockage_injoignable_sans_echouer() -> None:
 
 def test_le_schema_openapi_est_publie() -> None:
     """C'est ce document qui sert à générer les types TypeScript du front."""
-    response = build_client().get("/openapi.json")
+    response = _client(database_reachable=True).get("/openapi.json")
 
     assert response.status_code == 200
     assert "/api/v1/system/status" in response.json()["paths"]
