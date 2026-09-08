@@ -5,14 +5,20 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from agentscope.application.container import Container
+from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
+from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
+from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
+from agentscope.infrastructure.persistence.empty_trace_read import EmptyTraceRead
 from agentscope.interfaces.api.app import create_app
 from tests.fakes.database_health import FakeDatabaseHealth
 
 
 def _client(*, database_reachable: bool) -> TestClient:
+    traces = EmptyTraceRead()
     container = Container(
         get_system_status=GetSystemStatus(
             database_health=FakeDatabaseHealth(reachable=database_reachable),
@@ -21,6 +27,10 @@ def _client(*, database_reachable: bool) -> TestClient:
         propose_mapping=ProposeMapping(
             mapping_proposal=FakeMappingProposal(),
         ),
+        get_kpi_summary=GetKpiSummary(traces),
+        get_tool_breakdown=GetToolBreakdown(traces),
+        get_activity_series=GetActivitySeries(traces),
+        get_session_detail=GetSessionDetail(traces),
     )
     return TestClient(create_app(container=container, version="0.1.0"))
 

@@ -10,12 +10,34 @@ prévenir la personne concernée — on ouvre une issue ou on lui demande.
 
 | Lot | Périmètre | Où ça vit |
 |---|---|---|
-| 1 — Architecture | Structure, conventions, CI, ADR, revue des PR structurantes | Racine, `.github/`, `docs/adr/`, `composition.py` |
-| 2 — Modèle & ingestion | Modèle relationnel, migrations, normalisation, dédoublonnage, moteur d'import | `domain/`, `application/ingestion/`, `infrastructure/persistence/`, `alembic/` |
-| 3 — Connecteur TraceLab | Mapping TraceLab, bilan d'import, provenance des données | `infrastructure/sources/`, `application/ingestion/` |
-| 4 — Agent IA | Profilage, proposition de mapping, port IA et ses adaptateurs | `application/mapping/`, `infrastructure/llm/` |
-| 5 — Dashboard | Indicateurs, visualisations, vue session, filtres, drill-down, qualité | `application/metrics/`, `frontend/src/features/dashboard/` |
+| 1 — Architecture | Structure, conventions, CI, ADR, revue des PR structurantes | Racine, `.github/`, `docs/`, `composition.py` |
+| 2 — Modèle & ingestion | Modèle relationnel, migrations, normalisation, dédoublonnage, moteur d'import | `domain/trace/`, `infrastructure/persistence/`, `alembic/` |
+| 3 — Connecteur TraceLab | Mapping TraceLab, bilan d'import, provenance des données | `infrastructure/sources/` |
+| 4 — Agent IA | Profilage, proposition de mapping, port IA et ses adaptateurs | `domain/mapping/`, `infrastructure/llm/` |
+| 5 — Dashboard | Indicateurs, visualisations, vue session, filtres, drill-down, qualité | `domain/metrics/`, `frontend/src/features/dashboard/` |
 | 6 — UI & publication | Coquille de l'application, écrans d'import et de mapping, doc, release | `frontend/src/app/`, `frontend/src/features/import/`, `README.md` |
+
+### Les dossiers partagés
+
+`application/ports/`, `application/use_cases/` et `interfaces/api/` sont **communs à tous
+les lots**. On n'y crée pas de sous-dossier par lot : un fichier par concept, dont le nom
+porte le sujet.
+
+| Vous écrivez | Ça va dans | Nommage |
+|---|---|---|
+| une interface attendue de l'extérieur | `application/ports/` | le sujet : `trace_read.py`, `mapping_proposer.py` |
+| un cas d'utilisation | `application/use_cases/` | un verbe : `propose_mapping.py`, `get_kpi_summary.py` |
+| une route HTTP | `interfaces/api/routers/` | la ressource : `metrics.py`, `sessions.py` |
+| un schéma d'entrée/sortie | `interfaces/api/schemas/` | idem |
+| une entité ou une règle métier | `domain/<votre sujet>/` | groupé par sujet |
+| une implémentation concrète | `infrastructure/<votre sujet>/` | groupé par sujet |
+
+Pourquoi le domaine est groupé par sujet et pas la couche application : le domaine contient
+beaucoup de petits fichiers par concept, la couche application n'en contient qu'un ou deux.
+Un dossier par lot dans `application/` ajouterait un niveau pour ranger deux fichiers.
+
+Quand vous ajoutez un cas d'utilisation destiné à être appelé de l'extérieur, déclarez-le
+dans `application/container.py` et câblez-le dans `composition.py`.
 
 ## 2. La règle des couches
 
@@ -51,29 +73,30 @@ la viole est rouge.
 
 ## 3. Branches
 
-**Une branche par personne**, nommée par son prénom, sur laquelle chacun pousse le travail
-de son lot :
+**Une branche par sujet**, partant de `main` à jour :
 
 ```
-Soufiane   Thanu   Mel   Narimen   Islam   Dia
+<type>/<description-courte>
 ```
 
-Chaque branche part de `main` et y revient par pull request. Personne ne pousse sur la
-branche d'un autre.
+Exemples réels : `feature/thanu-design-data-model`, `mel/tracelab-import`,
+`feature/agent-ia-setup`.
+
+Types : `feature`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`.
+
+Chaque branche revient sur `main` par pull request. Personne ne pousse sur la branche d'un
+autre.
+
+**Ouvre une pull request dès qu'un morceau cohérent est terminé**, sans attendre d'avoir
+fini tout ton lot : une PR de 800 lignes n'est pas relue, elle est approuvée.
 
 **Reste synchronisé avec `main` au moins une fois par jour**, sinon l'intégration de fin de
 semaine devient un chantier :
 
 ```bash
 git fetch origin
-git rebase origin/main
+git merge origin/main
 ```
-
-> Ce choix privilégie la simplicité d'organisation. Sa contrepartie : une branche
-> personnelle accumule plusieurs sujets, donc les pull requests grossissent et deviennent
-> plus difficiles à relire. **Ouvre une PR dès qu'un morceau cohérent est terminé** plutôt
-> que d'attendre d'avoir fini tout ton lot — une PR de 800 lignes n'est pas relue, elle est
-> approuvée.
 
 ## 4. Commits
 
@@ -102,10 +125,32 @@ besoin de commits lisibles.
 - Une PR est reliée à une issue (`Closes #12`) et reste dans le périmètre d'un lot.
 - **Une revue par une autre personne du groupe est obligatoire** avant intégration.
 - La CI doit être verte.
-- La personne qui relit vérifie en priorité : le respect des couches, le sens des
-  dépendances, et la présence de tests sur les règles métier. Pas le style — `ruff` s'en charge.
 
 Chaque membre doit relire des PR, pas seulement en ouvrir. C'est un critère d'évaluation.
+
+### Ce qu'on regarde dans une revue
+
+Approuver sans lire ne fait pas avancer le projet : ça déplace simplement le problème vers
+la personne qui découvrira l'erreur trois jours plus tard. Cinq points, dans cet ordre :
+
+1. **Le sens des dépendances.** Une importation qui remonte vers l'extérieur, un type de
+   bibliothèque qui entre dans `domain/` ou `application/`. Le test d'architecture attrape
+   la plupart des cas, pas tous.
+2. **Les interfaces partagées.** Un port, un schéma d'API ou une colonne de mesure qui
+   change concerne quelqu'un d'autre. Vérifie que la section « impact sur les autres lots »
+   de la PR est remplie, et que la personne concernée est au courant.
+3. **Les tests.** Une règle métier sans test n'est pas terminée. Un test qui a besoin d'une
+   base ou d'un appel réseau est un test à refaire.
+4. **Le traitement des valeurs absentes.** C'est l'erreur la plus coûteuse du projet et la
+   plus discrète : un `DEFAULT 0`, un `or 0`, un `?? 0` transforme silencieusement « on ne
+   sait pas » en « zéro », et le dashboard affiche des chiffres faux avec assurance.
+5. **Ce que la documentation promet.** Si la PR ajoute un document livrable, ouvre-le et
+   regarde son rendu.
+
+Ce qu'on ne regarde **pas** : le style et le formatage. `ruff` et `tsc` s'en chargent.
+
+Une revue utile laisse au moins un commentaire ou une question. Si tu n'as vraiment rien à
+dire, écris-le — au moins on saura que tu as lu.
 
 ## 6. Tests
 

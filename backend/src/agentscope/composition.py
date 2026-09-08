@@ -11,11 +11,16 @@ from __future__ import annotations
 
 from agentscope.application.container import Container
 from agentscope.application.ports.mapping_proposal import MappingProposalPort
+from agentscope.application.use_cases.get_activity_series import GetActivitySeries
+from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
+from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
+from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
 from agentscope.infrastructure.config.settings import Settings, get_settings
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
 from agentscope.infrastructure.llm.ollama import OllamaMappingProposal
+from agentscope.infrastructure.persistence.empty_trace_read import EmptyTraceRead
 from agentscope.infrastructure.persistence.engine import build_engine
 from agentscope.infrastructure.persistence.sqlalchemy_database_health import (
     SqlAlchemyDatabaseHealth,
@@ -41,6 +46,11 @@ def build_container(settings: Settings | None = None) -> Container:
     settings = settings or get_settings()
     engine = build_engine(settings.database_url)
 
+    # Lecture des traces. Tant que le lot 2 n'a pas livré le stockage, l'application ne lit
+    # rien et l'annonce. Le jour où `SqlAlchemyTraceRead` existe, c'est cette ligne — et
+    # elle seule — qui change.
+    traces = EmptyTraceRead()
+
     return Container(
         get_system_status=GetSystemStatus(
             database_health=SqlAlchemyDatabaseHealth(engine),
@@ -49,4 +59,8 @@ def build_container(settings: Settings | None = None) -> Container:
         propose_mapping=ProposeMapping(
             mapping_proposal=build_mapping_proposal(settings),
         ),
+        get_kpi_summary=GetKpiSummary(traces),
+        get_tool_breakdown=GetToolBreakdown(traces),
+        get_activity_series=GetActivitySeries(traces),
+        get_session_detail=GetSessionDetail(traces),
     )

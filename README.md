@@ -98,6 +98,7 @@ Le cœur métier — `domain/` et `application/` — n'utilise que la bibliothè
 ne connaît ni FastAPI, ni SQLAlchemy, ni aucun fournisseur d'IA. Cette règle est **vérifiée
 par un test** qui tourne dans la CI (`backend/tests/architecture/`).
 
+- **Le schéma des composants et de leurs dépendances : [docs/architecture.md](docs/architecture.md)**
 - Les conventions de travail : [CONTRIBUTING.md](CONTRIBUTING.md)
 - Les décisions d'architecture : [docs/adr/](docs/adr/)
 
