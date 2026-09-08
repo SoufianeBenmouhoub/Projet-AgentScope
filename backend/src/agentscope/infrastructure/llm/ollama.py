@@ -55,10 +55,12 @@ class OllamaMappingProposal(MappingProposalPort):
             f"{fields_desc}\n\n"
             f"Pour chaque champ cible parmi [{targets}], propose le champ source qui lui "
             f"correspond le mieux (ou null si aucune correspondance fiable), avec un score "
-            f"de confiance entre 0 et 1.\n"
+            f"de confiance entre 0 et 1, et une courte note en français (une phrase) qui "
+            f"explique ton choix — en particulier pourquoi aucune correspondance fiable "
+            f"n'a été trouvée, le cas échéant.\n"
             f"Réponds UNIQUEMENT avec un JSON de cette forme, sans texte autour :\n"
             f'{{"mappings": [{{"target_field": "...", "source_field": "..." ou null, '
-            f'"confidence": 0.0}}]}}'
+            f'"confidence": 0.0, "note": "..."}}]}}'
         )
 
     def _parse_response(self, raw: str) -> MappingProposal:
@@ -69,10 +71,16 @@ class OllamaMappingProposal(MappingProposalPort):
                     target_field=item["target_field"],
                     source_field=item.get("source_field"),
                     confidence=item.get("confidence"),
+                    note=item.get("note"),
                 )
                 for item in data.get("mappings", [])
             )
-            return MappingProposal(mappings=mappings)
+            unresolved_notes = tuple(
+                f"{mapping.target_field} : {mapping.note}"
+                for mapping in mappings
+                if mapping.source_field is None and mapping.note
+            )
+            return MappingProposal(mappings=mappings, unresolved_notes=unresolved_notes)
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
             return MappingProposal(
                 mappings=(),
