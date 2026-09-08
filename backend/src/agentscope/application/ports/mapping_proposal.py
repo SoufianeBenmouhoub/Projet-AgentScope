@@ -16,6 +16,7 @@ Deux choix structurants :
    proposée vaut `None`, jamais une supposition — l'ambiguïté doit remonter à
    l'utilisateur plutôt que d'être masquée.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

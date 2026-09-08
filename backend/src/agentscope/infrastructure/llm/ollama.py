@@ -14,9 +14,19 @@ from agentscope.application.ports.mapping_proposal import (
 )
 
 TARGET_FIELDS = [
-    "session_id", "source", "agent", "started_at", "ended_at",
-    "model", "occurred_at", "input_tokens", "output_tokens", "cache_creation_tokens",
-    "tool_name", "is_error", "latency_ms",
+    "session_id",
+    "source",
+    "agent",
+    "started_at",
+    "ended_at",
+    "model",
+    "occurred_at",
+    "input_tokens",
+    "output_tokens",
+    "cache_creation_tokens",
+    "tool_name",
+    "is_error",
+    "latency_ms",
 ]
 
 
