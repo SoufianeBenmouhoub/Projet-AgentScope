@@ -23,6 +23,7 @@ from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.application.use_cases.list_sessions import ListSessions
+from agentscope.application.use_cases.propose_mapping import ProposeMapping
 
 
 def provide_container(request: Request) -> Container:
@@ -61,6 +62,10 @@ def provide_get_filter_options(request: Request) -> GetFilterOptions:
 
 def provide_list_sessions(request: Request) -> ListSessions:
     return provide_container(request).list_sessions
+
+
+def provide_propose_mapping(request: Request) -> ProposeMapping:
+    return provide_container(request).propose_mapping
 
 
 def provide_trace_filter(
