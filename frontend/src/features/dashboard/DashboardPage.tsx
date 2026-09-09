@@ -18,6 +18,7 @@ import "./dashboard.css";
 import { FilterBar } from "./FilterBar";
 import { isUnfiltered, NO_FILTERS, type TraceFilters } from "./filters";
 import { IndicatorCard } from "./IndicatorCard";
+import { DataQualityPanel } from "./quality/DataQualityPanel";
 import { SessionDetail } from "./sessions/SessionDetail";
 import { SessionList } from "./sessions/SessionList";
 
@@ -160,6 +161,12 @@ export function DashboardPage() {
           )}
 
           {detail.data && <SessionDetail detail={detail.data} />}
+
+          <DataQualityPanel
+            summary={summary.data}
+            activity={activity.data}
+            bySource={bySource.rows}
+          />
         </>
       )}
     </section>

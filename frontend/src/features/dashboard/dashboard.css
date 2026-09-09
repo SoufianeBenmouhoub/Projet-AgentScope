@@ -143,6 +143,7 @@
   margin: 0.75rem 0 0;
 }
 
+.quality,
 .sessions,
 .session {
   margin-top: 1.5rem;
@@ -216,6 +217,71 @@
 
 .sessions__row--selected {
   background: rgba(42, 120, 214, 0.08);
+}
+
+.quality__title {
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.quality__subtitle {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+  margin: 1rem 0 0;
+}
+
+.quality__table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.quality__table th,
+.quality__table td {
+  text-align: left;
+  padding: 0.3125rem 0.75rem 0.3125rem 0;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.quality__table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Une mesure non publiée ne doit pas se lire comme un chiffre. */
+.quality__missing {
+  color: #777;
+  font-style: italic;
+}
+
+.quality__note {
+  font-size: 0.8125rem;
+  color: #777;
+  margin: 0.5rem 0 0;
+}
+
+.quality__reasons {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.quality__reasons dt {
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.quality__reasons dd {
+  margin: 0.125rem 0 0;
+  color: #555;
+}
+
+.quality__list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.8125rem;
 }
 
 .session__subtitle {
@@ -318,12 +384,25 @@
 @media (prefers-color-scheme: dark) {
   .indicator,
   .chart,
+  .quality,
   .sessions,
   .session,
   .filters__group,
   .filters__reset,
   .sessions__header button {
     border-color: #444;
+  }
+
+  .quality__subtitle,
+  .quality__note,
+  .quality__missing,
+  .quality__reasons dd {
+    color: #999;
+  }
+
+  .quality__table th,
+  .quality__table td {
+    border-bottom-color: #333;
   }
 
   .dashboard__hint,

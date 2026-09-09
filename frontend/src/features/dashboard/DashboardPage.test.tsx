@@ -254,6 +254,44 @@ describe("DashboardPage — visualisations", () => {
   });
 });
 
+describe("DashboardPage — qualité des données", () => {
+  it("affiche le panneau de qualité sous le tableau de bord", async () => {
+    stubDashboard(aKpiSummary());
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /qualité des données/i })).toBeTruthy();
+    });
+  });
+
+  it("explique pourquoi un indicateur est indisponible plutôt que de le taire", async () => {
+    stubDashboard(
+      aKpiSummary([
+        anIndicator("tool_error_rate", {
+          aggregate: { value: null, unit: "%", available: false, covered: 0, total: 9 },
+        }),
+      ]),
+    );
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Indicateurs indisponibles")).toBeTruthy();
+    });
+  });
+
+  it("annonce que le bilan d'import n'est pas encore exposé", async () => {
+    stubDashboard(aKpiSummary());
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/le bilan d'import n'est pas encore exposé/i)).toBeTruthy();
+    });
+  });
+});
+
 describe("DashboardPage — retour du graphique vers les sessions", () => {
   async function renderAndClickFirstChart() {
     const fetchMock = stubDashboard(aKpiSummary());
