@@ -9,6 +9,10 @@ from agentscope.application.ports.trace_read import ToolCallRecord, TraceFilter,
 from agentscope.domain.metrics.aggregation import count_of, median_of, rate_of
 from agentscope.domain.metrics.breakdown import ToolBreakdown, ToolUsage
 
+#: Libellé des appels dont l'outil n'est pas nommé. Ils sont regroupés sous une entrée qui
+#: dit son ignorance plutôt que d'être répartis sous un nom inventé ou passés sous silence.
+UNNAMED_TOOL = "outil non renseigné"
+
 
 class GetToolBreakdown:
     """Ordonne les outils du plus utilisé au moins utilisé, avec de quoi y revenir.
@@ -25,7 +29,7 @@ class GetToolBreakdown:
 
         grouped: dict[str, list[ToolCallRecord]] = defaultdict(list)
         for call in tool_calls:
-            grouped[call.tool_name].append(call)
+            grouped[call.tool_name or UNNAMED_TOOL].append(call)
 
         usages = tuple(
             sorted(

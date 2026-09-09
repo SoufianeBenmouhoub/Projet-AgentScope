@@ -22,7 +22,9 @@ export function SessionDetail({ detail }: { detail: SessionDetailPayload }) {
         </div>
         <div>
           <dt>Agent</dt>
-          <dd>{detail.agent}</dd>
+          {/* Toutes les sources ne nomment pas l'agent : une case vide se lirait comme un
+              oubli d'affichage, « n/a » dit que l'information n'existe pas. */}
+          <dd>{detail.agent ?? UNAVAILABLE}</dd>
         </div>
         <div>
           <dt>Début</dt>

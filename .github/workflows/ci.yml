@@ -16,6 +16,28 @@ jobs:
     defaults:
       run:
         working-directory: backend
+
+    # Les tests de l'adaptateur de lecture ont besoin d'une base réelle : ils vérifient la
+    # traduction entre le modèle relationnel et le contrat du dashboard, ce qu'aucune
+    # doublure ne peut faire. Sans ce service, ils seraient silencieusement ignorés.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agentscope
+          POSTGRES_PASSWORD: agentscope
+          POSTGRES_DB: agentscope
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://agentscope:agentscope@localhost:5432/agentscope
+
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +55,9 @@ jobs:
 
       - name: Format
         run: ruff format --check .
+
+      - name: Migrations
+        run: alembic upgrade head
 
       - name: Tests
         run: pytest -q

@@ -317,6 +317,28 @@ describe("DashboardPage — retour du graphique vers les sessions", () => {
     expect(screen.getByText("Chronologie")).toBeTruthy();
   });
 
+  it("affiche « n/a » quand la source ne nomme pas l'agent", async () => {
+    stubFetch([
+      { match: FILTERS, body: someFilterOptions() },
+      { match: ACTIVITY, body: anActivitySeries() },
+      { match: TOOLS, body: aToolBreakdown() },
+      { match: SUMMARY, body: aKpiSummary() },
+      { match: SESSION_DETAIL, body: aSessionDetail({ agent: null }) },
+      { match: SESSION_LIST, body: aSessionList() },
+    ]);
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => expect(screen.getAllByTestId("graphique").length).toBeGreaterThan(0));
+    await userEvent.click(screen.getAllByTestId("graphique")[0]);
+    await waitFor(() => expect(screen.getByRole("button", { name: "s1" })).toBeTruthy());
+    await userEvent.click(screen.getByRole("button", { name: "s1" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /détail de la session s1/i })).toBeTruthy();
+    });
+    expect(screen.getAllByText("n/a").length).toBeGreaterThan(0);
+  });
+
   it("conserve dans la chronologie un événement non horodaté", async () => {
     await renderAndClickFirstChart();
 
