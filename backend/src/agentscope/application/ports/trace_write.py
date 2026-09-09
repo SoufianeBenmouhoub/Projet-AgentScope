@@ -26,4 +26,3 @@ class TraceWritePort(ABC):
     def save_tool_call(self, tool_call: ToolCall) -> None:
         """Enregistre un appel outil."""
         ...
-c
