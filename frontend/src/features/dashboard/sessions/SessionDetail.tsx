@@ -13,7 +13,7 @@ import { formatMoment } from "./SessionList";
 export function SessionDetail({ detail }: { detail: SessionDetailPayload }) {
   return (
     <section className="session" aria-label={`Détail de la session ${detail.session_id}`}>
-      <h3 className="session__title">Session {detail.session_id}</h3>
+      <h2 className="session__title">Session {detail.session_id}</h2>
 
       <dl className="session__facts">
         <div>
@@ -51,7 +51,7 @@ export function SessionDetail({ detail }: { detail: SessionDetailPayload }) {
         </div>
       </dl>
 
-      <h4 className="session__subtitle">Chronologie</h4>
+      <h3 className="session__subtitle">Chronologie</h3>
       <table className="session__events">
         <thead>
           <tr>
