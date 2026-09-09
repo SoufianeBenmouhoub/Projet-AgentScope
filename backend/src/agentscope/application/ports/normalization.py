@@ -7,11 +7,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from agentscope.application.ports.trace_read import (
-    ModelCallRecord,
-    SessionRecord,
-    ToolCallRecord,
-)
+from agentscope.domain.trace.model_call import ModelCall
+from agentscope.domain.trace.session import Session
+from agentscope.domain.trace.tool_call import ToolCall
 
 
 @dataclass(frozen=True)
@@ -26,14 +24,14 @@ class NormalizationIssue:
 class NormalizedRecord:
     """Résultat de normalisation d'un enregistrement brut."""
 
-    sessions: Sequence[SessionRecord]
-    model_calls: Sequence[ModelCallRecord]
-    tool_calls: Sequence[ToolCallRecord]
+    sessions: Sequence[Session]
+    model_calls: Sequence[ModelCall]
+    tool_calls: Sequence[ToolCall]
     issues: Sequence[NormalizationIssue]
 
 
 class RecordNormalizerPort(ABC):
-    """Contrat de transformation des données brutes vers le modèle commun."""
+    """Contrat de transformation des données brutes vers le modèle métier."""
 
     @abstractmethod
     def normalize(
@@ -41,6 +39,7 @@ class RecordNormalizerPort(ABC):
         record: dict[str, Any],
         mapping: dict[str, str | None],
         source: str,
+        filename: str,
     ) -> NormalizedRecord:
         """Normalise un enregistrement brut selon un mapping validé."""
         ...
