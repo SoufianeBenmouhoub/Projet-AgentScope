@@ -61,11 +61,16 @@ class TraceFilter:
 
 @dataclass(frozen=True)
 class SessionRecord:
-    """Une ligne = une session, c'est-à-dire une suite d'échanges avec un agent."""
+    """Une ligne = une session, c'est-à-dire une suite d'échanges avec un agent.
+
+    `agent` est optionnel : toutes les sources ne nomment pas l'agent qui a produit la
+    trace. Inventer une valeur ici — « inconnu », le nom de la source — reviendrait à
+    fabriquer de la donnée à la frontière, ce que le reste du projet s'interdit.
+    """
 
     session_id: str
     source: str
-    agent: str
+    agent: str | None
     started_at: datetime | None
     ended_at: datetime | None
 
@@ -76,7 +81,7 @@ class ModelCallRecord:
 
     session_id: str
     source: str
-    agent: str
+    agent: str | None
     model: str | None
     occurred_at: datetime | None
     input_tokens: int | None
@@ -91,11 +96,15 @@ class ToolCallRecord:
     `is_error` vaut `None` quand la source ne publie pas l'issue de l'appel. C'est une
     troisième valeur, distincte de « réussi » et de « échoué », et le taux d'erreur la
     traite comme telle.
+
+    `tool_name` est optionnel pour la même raison que `agent` : un appel dont l'outil n'est
+    pas nommé existe, et il vaut mieux le compter sous un libellé qui dit son ignorance que
+    sous un nom inventé.
     """
 
     session_id: str
     source: str
-    tool_name: str
+    tool_name: str | None
     occurred_at: datetime | None
     is_error: bool | None
     latency_ms: int | None

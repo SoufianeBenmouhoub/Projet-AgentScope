@@ -16,7 +16,7 @@ class SessionSummaryResponse(BaseModel):
 
     session_id: str
     source: str
-    agent: str
+    agent: str | None
     started_at: datetime | None
     ended_at: datetime | None
     duration: AggregateResponse
@@ -84,7 +84,7 @@ class SessionEventResponse(BaseModel):
 class SessionDetailResponse(BaseModel):
     session_id: str
     source: str
-    agent: str
+    agent: str | None
     started_at: datetime | None
     ended_at: datetime | None
     duration: AggregateResponse = Field(

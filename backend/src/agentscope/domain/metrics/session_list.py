@@ -19,7 +19,7 @@ class SessionSummary:
 
     session_id: str
     source: str
-    agent: str
+    agent: str | None
     started_at: datetime | None
     ended_at: datetime | None
     duration: Aggregate

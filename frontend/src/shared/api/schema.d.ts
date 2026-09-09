@@ -152,6 +152,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mapping/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose une correspondance de champs pour un échantillon importé
+         * @description Construit un échantillon à partir des enregistrements bruts envoyés, puis demande
+         *     à l'agent IA configuré (`AI_PROVIDER`) de proposer une correspondance vers le modèle
+         *     du domaine. Une correspondance non trouvée reste `None`, jamais une supposition.
+         */
+        post: operations["propose_mapping_api_v1_mapping_propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -223,6 +245,17 @@ export interface components {
              */
             coverage: number | null;
         };
+        /** FieldMappingResponse */
+        FieldMappingResponse: {
+            /** Target Field */
+            target_field: string;
+            /** Source Field */
+            source_field: string | null;
+            /** Confidence */
+            confidence: number | null;
+            /** Note */
+            note: string | null;
+        };
         /**
          * FilterOptionsResponse
          * @description Les valeurs sur lesquelles il est possible de filtrer, dérivées des traces importées.
@@ -251,6 +284,24 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * ImportSampleRequest
+         * @description Échantillon brut envoyé par le client : un aperçu du fichier à importer.
+         */
+        ImportSampleRequest: {
+            /**
+             * Source Format
+             * @description Format du fichier source : jsonl, csv, parquet.
+             */
+            source_format: string;
+            /**
+             * Records
+             * @description Quelques enregistrements bruts, tels que lus dans le fichier.
+             */
+            records: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * IndicatorCatalogResponse
@@ -300,6 +351,13 @@ export interface components {
             /** Indicators */
             indicators: components["schemas"]["IndicatorResponse"][];
         };
+        /** MappingProposalResponse */
+        MappingProposalResponse: {
+            /** Mappings */
+            mappings: components["schemas"]["FieldMappingResponse"][];
+            /** Unresolved Notes */
+            unresolved_notes: string[];
+        };
         /** SessionDetailResponse */
         SessionDetailResponse: {
             /** Session Id */
@@ -307,7 +365,7 @@ export interface components {
             /** Source */
             source: string;
             /** Agent */
-            agent: string;
+            agent: string | null;
             /** Started At */
             started_at: string | null;
             /** Ended At */
@@ -370,7 +428,7 @@ export interface components {
             /** Source */
             source: string;
             /** Agent */
-            agent: string;
+            agent: string | null;
             /** Started At */
             started_at: string | null;
             /** Ended At */
@@ -699,6 +757,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_mapping_api_v1_mapping_propose_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportSampleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingProposalResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

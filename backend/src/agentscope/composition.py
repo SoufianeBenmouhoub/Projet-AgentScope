@@ -22,11 +22,11 @@ from agentscope.application.use_cases.propose_mapping import ProposeMapping
 from agentscope.infrastructure.config.settings import Settings, get_settings
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
 from agentscope.infrastructure.llm.ollama import OllamaMappingProposal
-from agentscope.infrastructure.persistence.empty_trace_read import EmptyTraceRead
 from agentscope.infrastructure.persistence.engine import build_engine
 from agentscope.infrastructure.persistence.sqlalchemy_database_health import (
     SqlAlchemyDatabaseHealth,
 )
+from agentscope.infrastructure.persistence.sqlalchemy_trace_read import SqlAlchemyTraceRead
 
 
 def build_mapping_proposal(settings: Settings) -> MappingProposalPort:
@@ -48,10 +48,14 @@ def build_container(settings: Settings | None = None) -> Container:
     settings = settings or get_settings()
     engine = build_engine(settings.database_url)
 
-    # Lecture des traces. Tant que le lot 2 n'a pas livré le stockage, l'application ne lit
-    # rien et l'annonce. Le jour où `SqlAlchemyTraceRead` existe, c'est cette ligne — et
-    # elle seule — qui change.
-    traces = EmptyTraceRead()
+    # Lecture des traces. C'est la seule ligne qui a changé quand le stockage réel a
+    # remplacé l'implémentation d'attente : aucun cas d'utilisation, aucune route et aucun
+    # composant du front n'a bougé.
+    #
+    # Volontairement pas de repli sur une lecture vide en cas de base injoignable : afficher
+    # « aucune donnée importée » alors que le stockage ne répond pas serait un mensonge, et
+    # c'est précisément ce que ce projet s'interdit. Une base absente doit se voir.
+    traces = SqlAlchemyTraceRead(engine)
 
     return Container(
         get_system_status=GetSystemStatus(
