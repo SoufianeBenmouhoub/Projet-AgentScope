@@ -30,9 +30,9 @@ export function SessionList({ listing, origin, selectedId, onSelect, onClear }: 
   return (
     <section className="sessions" aria-label="Sessions sélectionnées">
       <header className="sessions__header">
-        <h3>
+        <h2>
           {listing.total} session{listing.total > 1 ? "s" : ""} — {origin}
-        </h3>
+        </h2>
         <button type="button" onClick={onClear}>
           Effacer la sélection
         </button>

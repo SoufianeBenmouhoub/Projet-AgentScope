@@ -78,15 +78,25 @@ export function DashboardPage() {
     setOpenSessionId(null);
   }
 
+  // Le titre reste affiché quel que soit l'état : une page dont le titre disparaît pendant
+  // le chargement fait sauter la mise en page, et laisse l'utilisateur sans repère.
   if (summary.isPending) {
-    return <p className="dashboard__status">Chargement des indicateurs…</p>;
+    return (
+      <section className="dashboard">
+        <h1>Tableau de bord</h1>
+        <p className="dashboard__status">Chargement des indicateurs…</p>
+      </section>
+    );
   }
 
   if (summary.isError) {
     return (
-      <p className="dashboard__status" role="alert">
-        Les indicateurs sont indisponibles : l'API ne répond pas.
-      </p>
+      <section className="dashboard">
+        <h1>Tableau de bord</h1>
+        <p className="dashboard__status" role="alert">
+          Les indicateurs sont indisponibles : l'API ne répond pas.
+        </p>
+      </section>
     );
   }
 
@@ -95,7 +105,9 @@ export function DashboardPage() {
 
   return (
     <section className="dashboard">
-      <h2>Tableau de bord</h2>
+      {/* La mise en page commune ne porte pas de titre : chaque écran est le premier
+          niveau de sa page. */}
+      <h1>Tableau de bord</h1>
 
       {options.data && (
         <FilterBar options={options.data} filters={filters} onChange={changeFilters} />
