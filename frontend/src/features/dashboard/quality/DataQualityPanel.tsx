@@ -47,11 +47,11 @@ export function DataQualityPanel({ summary, activity, bySource }: Props) {
 
   return (
     <section className="quality" aria-label="Qualité des données importées">
-      <h3 className="quality__title">Qualité des données importées</h3>
+      <h2 className="quality__title">Qualité des données importées</h2>
 
       {measures.length > 0 && coverage.length > 0 && (
         <>
-          <h4 className="quality__subtitle">Complétude par source</h4>
+          <h3 className="quality__subtitle">Complétude par source</h3>
           <table className="quality__table">
             <thead>
               <tr>
@@ -88,7 +88,7 @@ export function DataQualityPanel({ summary, activity, bySource }: Props) {
 
       {unavailable.length > 0 && (
         <>
-          <h4 className="quality__subtitle">Indicateurs indisponibles</h4>
+          <h3 className="quality__subtitle">Indicateurs indisponibles</h3>
           <dl className="quality__reasons">
             {unavailable.map((entry) => (
               <div key={entry.label}>
@@ -102,7 +102,7 @@ export function DataQualityPanel({ summary, activity, bySource }: Props) {
 
       {partial.length > 0 && (
         <>
-          <h4 className="quality__subtitle">Indicateurs partiels</h4>
+          <h3 className="quality__subtitle">Indicateurs partiels</h3>
           <dl className="quality__reasons">
             {partial.map((entry) => (
               <div key={entry.label}>
@@ -116,7 +116,7 @@ export function DataQualityPanel({ summary, activity, bySource }: Props) {
 
       {undated.length > 0 && (
         <>
-          <h4 className="quality__subtitle">Exclus des vues temporelles</h4>
+          <h3 className="quality__subtitle">Exclus des vues temporelles</h3>
           <ul className="quality__list">
             {undated.map((entry) => (
               <li key={entry.label}>
@@ -127,7 +127,7 @@ export function DataQualityPanel({ summary, activity, bySource }: Props) {
         </>
       )}
 
-      <h4 className="quality__subtitle">Rejets du dernier import</h4>
+      <h3 className="quality__subtitle">Rejets du dernier import</h3>
       <p className="quality__note">
         Non disponible : le bilan d'import n'est pas encore exposé par l'API. Cette section
         listera les enregistrements rejetés et leur explication.
