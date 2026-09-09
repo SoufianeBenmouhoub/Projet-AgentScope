@@ -1,15 +1,16 @@
 """Racine de composition.
 
-**Le seul endroit du projet où les implémentations concrètes sont choisies.** Changer de
+**Le seul endroit du projet oÃ¹ les implÃ©mentations concrÃ¨tes sont choisies.** Changer de
 moteur de stockage ou de fournisseur d'IA se joue ici, en une ligne, sans toucher aux
-règles métier.
+rÃ¨gles mÃ©tier.
 
-C'est aussi le seul module, avec `main.py`, autorisé à importer `infrastructure/`.
+C'est aussi le seul module, avec `main.py`, autorisÃ© Ã  importer `infrastructure/`.
 """
 
 from __future__ import annotations
 
 from agentscope.application.container import Container
+from agentscope.application.use_cases.import_traces import ImportTraces
 from agentscope.application.ports.mapping_proposal import MappingProposalPort
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
 from agentscope.application.use_cases.get_filter_options import GetFilterOptions
@@ -23,6 +24,9 @@ from agentscope.infrastructure.config.settings import Settings, get_settings
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
 from agentscope.infrastructure.llm.ollama import OllamaMappingProposal
 from agentscope.infrastructure.persistence.empty_trace_read import EmptyTraceRead
+from agentscope.infrastructure.persistence.sqlalchemy_trace_writer import SQLAlchemyTraceWriter
+from agentscope.infrastructure.persistence.sqlalchemy_import_deduplication import SqlAlchemyImportDeduplication
+from sqlalchemy.orm import Session as SQLAlchemySession, sessionmaker
 from agentscope.infrastructure.persistence.engine import build_engine
 from agentscope.infrastructure.persistence.sqlalchemy_database_health import (
     SqlAlchemyDatabaseHealth,
@@ -30,7 +34,7 @@ from agentscope.infrastructure.persistence.sqlalchemy_database_health import (
 
 
 def build_mapping_proposal(settings: Settings) -> MappingProposalPort:
-    """Choisit l'adaptateur IA à utiliser selon la configuration."""
+    """Choisit l'adaptateur IA Ã  utiliser selon la configuration."""
     if settings.ai_provider == "fake":
         return FakeMappingProposal()
     if settings.ai_provider == "ollama":
@@ -44,13 +48,18 @@ def build_mapping_proposal(settings: Settings) -> MappingProposalPort:
 
 
 def build_container(settings: Settings | None = None) -> Container:
-    """Câble les cas d'utilisation avec leurs implémentations réelles."""
+    """CÃ¢ble les cas d'utilisation avec leurs implÃ©mentations rÃ©elles."""
     settings = settings or get_settings()
     engine = build_engine(settings.database_url)
 
-    # Lecture des traces. Tant que le lot 2 n'a pas livré le stockage, l'application ne lit
-    # rien et l'annonce. Le jour où `SqlAlchemyTraceRead` existe, c'est cette ligne — et
-    # elle seule — qui change.
+    # Lecture des traces. Tant que le lot 2 n'a pas livrÃ© le stockage, l'application ne lit
+    # rien et l'annonce. Le jour oÃ¹ `SqlAlchemyTraceRead` existe, c'est cette ligne â€” et
+    # elle seule â€” qui change.
+    session_factory = sessionmaker(bind=engine, class_=SQLAlchemySession)
+    db = session_factory()
+    trace_writer = SQLAlchemyTraceWriter(db)
+    deduplication = SqlAlchemyImportDeduplication(engine)
+
     traces = EmptyTraceRead()
 
     return Container(
@@ -67,4 +76,11 @@ def build_container(settings: Settings | None = None) -> Container:
         get_session_detail=GetSessionDetail(traces),
         get_filter_options=GetFilterOptions(traces),
         list_sessions=ListSessions(traces),
+        import_traces=ImportTraces(
+            file_reader=__import__("agentscope.infrastructure.sources.duckdb_file_reader", fromlist=["DuckDBFileReader"]).DuckDBFileReader(),
+            normalizer=__import__("agentscope.infrastructure.normalization.record_normalizer", fromlist=["RecordNormalizer"]).RecordNormalizer(),
+            trace_writer=trace_writer,
+            deduplication=deduplication,
+        ),
     )
+

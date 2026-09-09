@@ -39,6 +39,7 @@ class RecordNormalizerPort(ABC):
         record: dict[str, Any],
         mapping: dict[str, str | None],
         source: str,
+        filename: str,
     ) -> NormalizedRecord:
         """Normalise un enregistrement brut selon un mapping validé."""
         ...

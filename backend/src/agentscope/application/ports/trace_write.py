@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from uuid import UUID
 
 from agentscope.domain.trace.model_call import ModelCall
 from agentscope.domain.trace.session import Session
@@ -25,4 +26,27 @@ class TraceWritePort(ABC):
     @abstractmethod
     def save_tool_call(self, tool_call: ToolCall) -> None:
         """Enregistre un appel outil."""
+        ...
+
+    @abstractmethod
+    def save_source(self, name: str) -> UUID:
+        """Crée ou récupère une source."""
+        ...
+
+    @abstractmethod
+    def save_import(
+        self,
+        source_id: UUID,
+        filename: str,
+        file_hash: str,
+        file_format: str,
+        records_imported: int,
+        missing_data_count: int,
+    ) -> None:
+        """Enregistre un import."""
+        ...
+
+    @abstractmethod
+    def commit(self) -> None:
+        """Valide la transaction en cours."""
         ...
