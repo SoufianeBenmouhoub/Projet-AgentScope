@@ -148,7 +148,11 @@ export function anAggregate(overrides: Partial<Aggregate> = {}): Aggregate {
 
 export function anIndicator(
   key: string,
-  overrides: { aggregate?: Partial<Aggregate>; indicator?: Partial<Indicator> } = {},
+  overrides: {
+    aggregate?: Partial<Aggregate>;
+    indicator?: Partial<Indicator>;
+    kind?: "count" | "measure";
+  } = {},
 ): Indicator {
   return {
     definition: {
@@ -159,6 +163,7 @@ export function anIndicator(
       scope: "Tout le périmètre filtré.",
       missing_values: "Les enregistrements sans mesure sont exclus.",
       comparability: "comparable",
+      kind: overrides.kind ?? "measure",
     },
     aggregate: anAggregate(overrides.aggregate),
     sources: ["tracelab-claude"],

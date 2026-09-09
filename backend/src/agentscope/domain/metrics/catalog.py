@@ -29,6 +29,24 @@ class Comparability(Enum):
     """
 
 
+class IndicatorKind(Enum):
+    """Un indicateur dénombre-t-il, ou mesure-t-il ?"""
+
+    COUNT = "count"
+    """Un dénombrement : toujours disponible, et complet par construction.
+
+    Parler de « couverture » n'a pas de sens pour lui — il n'y a pas d'enregistrement qui
+    « ne renseignerait pas » son propre existence.
+    """
+
+    MEASURE = "measure"
+    """Une mesure lue dans les traces : elle peut manquer, en tout ou en partie.
+
+    C'est la seule famille pour laquelle la couverture est une information utile, et donc
+    la seule que le panneau de qualité des données a besoin de détailler.
+    """
+
+
 @dataclass(frozen=True)
 class IndicatorDefinition:
     key: str
@@ -38,6 +56,7 @@ class IndicatorDefinition:
     scope: str
     missing_values: str
     comparability: Comparability
+    kind: IndicatorKind = IndicatorKind.MEASURE
 
 
 SESSIONS_TOTAL = IndicatorDefinition(
@@ -50,6 +69,7 @@ SESSIONS_TOTAL = IndicatorDefinition(
         "Aucune : un dénombrement est toujours disponible. Zéro session signifie réellement zéro."
     ),
     comparability=Comparability.COMPARABLE,
+    kind=IndicatorKind.COUNT,
 )
 
 MODEL_CALLS_TOTAL = IndicatorDefinition(
@@ -60,6 +80,7 @@ MODEL_CALLS_TOTAL = IndicatorDefinition(
     scope="Toutes les sources retenues par les filtres actifs.",
     missing_values="Aucune : un dénombrement est toujours disponible.",
     comparability=Comparability.COMPARABLE,
+    kind=IndicatorKind.COUNT,
 )
 
 INPUT_TOKENS_TOTAL = IndicatorDefinition(

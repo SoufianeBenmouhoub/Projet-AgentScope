@@ -333,6 +333,11 @@ export interface components {
              * @description « comparable » ou « source_specific ». Un indicateur propre à une source ne doit pas être agrégé silencieusement avec les autres.
              */
             comparability: string;
+            /**
+             * Kind
+             * @description « count » ou « measure ». La couverture n'a de sens que pour une mesure : un dénombrement est complet par construction.
+             */
+            kind: string;
         };
         /** IndicatorResponse */
         IndicatorResponse: {

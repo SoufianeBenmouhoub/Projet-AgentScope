@@ -62,6 +62,10 @@ class IndicatorDefinitionResponse(BaseModel):
         description="« comparable » ou « source_specific ». Un indicateur propre à une "
         "source ne doit pas être agrégé silencieusement avec les autres."
     )
+    kind: str = Field(
+        description="« count » ou « measure ». La couverture n'a de sens que pour une "
+        "mesure : un dénombrement est complet par construction."
+    )
 
     @classmethod
     def from_domain(cls, definition: IndicatorDefinition) -> IndicatorDefinitionResponse:
@@ -73,6 +77,7 @@ class IndicatorDefinitionResponse(BaseModel):
             scope=definition.scope,
             missing_values=definition.missing_values,
             comparability=definition.comparability.value,
+            kind=definition.kind.value,
         )
 
 
