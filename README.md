@@ -9,7 +9,8 @@ lisibles dans un tableau de bord. Une source dont la structure n'est pas encore 
 être intégrée **par configuration**, avec l'aide d'un agent IA qui propose un mapping —
 que l'utilisateur relit, corrige et valide avant tout import.
 
-> Projet en cours de construction. Ce README sera complété au fil du sprint par le lot 6.
+**Version `v0.1.0`** — voir les [notes de version](CHANGELOG.md) pour les fonctionnalités
+livrées et les limites connues.
 
 ## Prérequis
 
@@ -59,27 +60,60 @@ back : rien d'autre à configurer.
 
 ## Tests
 
+Depuis la racine du dépôt, dans deux terminaux ou l'un après l'autre :
+
 ```bash
-cd backend  && pytest          # domaine, cas d'utilisation, API, architecture
-cd frontend && npm run test    # composants
+cd backend
+pytest                  # domaine, cas d'utilisation, API, architecture
 ```
 
-Aucun test n'appelle un service IA réel ni ne nécessite une base de données : c'est une
-règle du projet, pas une commodité.
+```bash
+cd frontend
+npm run test            # composants et écrans
+npm run lint            # vérification des types
+```
+
+**Aucun test n'appelle un service IA réel** : c'est une règle du projet, pas une commodité.
+L'adaptateur `fake` est là pour ça.
+
+Une poignée de tests vérifient la traduction entre le modèle relationnel et le contrat du
+tableau de bord, ce qu'aucune doublure ne peut faire : ils ont besoin d'une base. Sans
+PostgreSQL joignable ils sont ignorés, et la suite reste exécutable. Pour les exécuter :
+
+```bash
+docker compose up -d
+cd backend && alembic upgrade head && pytest
+```
 
 ## Configuration du modèle IA
 
 Le fournisseur, le modèle et son point d'accès se choisissent dans `backend/.env`, sans
 toucher au code. Trois configurations sont documentées dans `backend/.env.example` :
 
-| Configuration | `AI_PROVIDER` | Clé nécessaire |
-|---|---|---|
-| Anthropic (distant) | `anthropic` | oui |
-| Ollama (local) | `ollama` | non |
-| Doublure de test | `fake` | non |
+| Configuration | `AI_PROVIDER` | `AI_MODEL` | `AI_BASE_URL` | Clé nécessaire |
+|---|---|---|---|---|
+| Ollama (local) | `ollama` | le modèle téléchargé | `http://localhost:11434/v1` | non |
+| Doublure de test | `fake` | — | — | non |
 
 La valeur par défaut est `fake`, pour qu'un clone du dépôt démarre et passe ses tests sans
 aucune clé API.
+
+### Changer de modèle ou de fournisseur
+
+1. Éditer `backend/.env` : `AI_PROVIDER`, `AI_MODEL` et, si le fournisseur l'exige,
+   `AI_BASE_URL` et `AI_API_KEY`.
+2. Redémarrer le serveur. **Rien d'autre à modifier** — aucun identifiant de modèle n'est
+   écrit dans le code, et le moteur d'import ne connaît pas le fournisseur.
+
+Un mapping enregistré avec un modèle reste utilisable après un changement de modèle : il est
+stocké sous forme de correspondances entre champs, indépendamment de qui l'a proposé.
+
+Ajouter un fournisseur non pris en charge se limite à écrire un adaptateur dans
+`backend/src/agentscope/infrastructure/llm/` et à le raccorder dans
+`build_mapping_proposal` (`backend/src/agentscope/composition.py`). Aucune autre partie de
+l'application ne change.
+
+Le détail de l'agent et de son contrat est dans [docs/mapping-agent.md](docs/mapping-agent.md).
 
 **Aucune clé API ne doit figurer dans le dépôt.**
 
@@ -123,6 +157,18 @@ docs/
   brief/             énoncé du projet
 ```
 
+## État du projet
+
+Le parcours principal existe de bout en bout, avec des limites assumées et documentées.
+Elles sont listées sans détour dans les [notes de version](CHANGELOG.md) — notamment le fait
+que la normalisation ne produit encore que des sessions, et que l'import n'est pas
+déclenchable depuis l'interface.
+
+## Contribuer
+
+Les conventions de travail, la règle des couches et ce qu'on regarde dans une revue sont
+dans [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Licence
 
-À définir avant la publication de la release.
+[MIT](LICENSE).

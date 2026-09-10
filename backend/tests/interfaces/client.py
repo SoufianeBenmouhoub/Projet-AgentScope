@@ -31,21 +31,27 @@ from tests.fakes.database_health import FakeDatabaseHealth
 from tests.fakes.trace_read import InMemoryTraceRead
 
 
-def build_client(
+def build_container(
     *,
     sessions: Sequence[SessionRecord] = (),
     model_calls: Sequence[ModelCallRecord] = (),
     tool_calls: Sequence[ToolCallRecord] = (),
     database_reachable: bool = True,
     version: str = "0.1.0",
-) -> TestClient:
+) -> Container:
+    """Le conteneur du tableau de bord, rempli de doublures.
+
+    Les cas d'utilisation de l'import ne sont pas câblés ici : les tests qui les exercent
+    fournissent leurs propres doublures, et ceux qui ne les touchent pas n'ont pas à
+    connaître un lecteur de fichiers.
+    """
     traces = InMemoryTraceRead(
         sessions=sessions,
         model_calls=model_calls,
         tool_calls=tool_calls,
     )
 
-    container = Container(
+    return Container(
         get_system_status=GetSystemStatus(
             database_health=FakeDatabaseHealth(reachable=database_reachable),
             version=version,
@@ -59,6 +65,23 @@ def build_client(
         get_session_detail=GetSessionDetail(traces),
         get_filter_options=GetFilterOptions(traces),
         list_sessions=ListSessions(traces),
+    )
+
+
+def build_client(
+    *,
+    sessions: Sequence[SessionRecord] = (),
+    model_calls: Sequence[ModelCallRecord] = (),
+    tool_calls: Sequence[ToolCallRecord] = (),
+    database_reachable: bool = True,
+    version: str = "0.1.0",
+) -> TestClient:
+    container = build_container(
+        sessions=sessions,
+        model_calls=model_calls,
+        tool_calls=tool_calls,
+        database_reachable=database_reachable,
+        version=version,
     )
 
     return TestClient(create_app(container=container, version=version))

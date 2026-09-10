@@ -21,6 +21,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historique des imports
+         * @description Les imports passés, du plus récent au plus ancien, rejets compris.
+         */
+        get: operations["list_imports_api_v1_imports_get"];
+        put?: never;
+        /**
+         * Importer un fichier
+         * @description Importe un fichier avec le mapping fourni.
+         *
+         *     Réimporter le même fichier ne crée pas de doublon : l'opération est reconnue et
+         *     l'historique renvoie l'import d'origine, avec le statut correspondant.
+         */
+        post: operations["import_file_api_v1_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Détail d'un import */
+        get: operations["get_import_detail_api_v1_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aperçu d'un fichier avant import
+         * @description Lit un échantillon du fichier et en déduit la liste de ses champs.
+         *
+         *     Rien n'est écrit en base : l'aperçu sert à décider, pas à importer.
+         */
+        post: operations["preview_import_api_v1_imports_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/metrics/definitions": {
         parameters: {
             query?: never;
@@ -245,6 +311,32 @@ export interface components {
              */
             coverage: number | null;
         };
+        /** Body_import_file_api_v1_imports_post */
+        Body_import_file_api_v1_imports_post: {
+            /**
+             * File
+             * @description Fichier JSONL, CSV ou Parquet.
+             */
+            file: string;
+            /**
+             * Source Name
+             * @description Nom de la source à créer ou à réutiliser.
+             */
+            source_name: string;
+            /**
+             * Mapping
+             * @description Correspondances champ du modèle → champ du fichier, en JSON. Omis, une correspondance à l'identique est tentée.
+             */
+            mapping?: string | null;
+        };
+        /** Body_preview_import_api_v1_imports_preview_post */
+        Body_preview_import_api_v1_imports_preview_post: {
+            /**
+             * File
+             * @description Fichier JSONL, CSV ou Parquet.
+             */
+            file: string;
+        };
         /** FieldMappingResponse */
         FieldMappingResponse: {
             /** Target Field */
@@ -284,6 +376,127 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * ImportDetailResponse
+         * @description Le bilan d'un import, avec le détail de ses rejets.
+         *
+         *     `rejections` est vide aujourd'hui : le moteur d'import compte les anomalies rencontrées
+         *     pendant la normalisation, mais ne conserve pas encore ligne par ligne ce qui a été
+         *     refusé. La liste existe pour que l'interface soit prête, et son vide est une limite
+         *     connue, pas un import sans problème.
+         */
+        ImportDetailResponse: {
+            /** Id */
+            id: string;
+            /** Source Name */
+            source_name: string;
+            /** Filename */
+            filename: string;
+            /** Format */
+            format: string;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /**
+             * Status
+             * @description « completed » quand l'import a abouti, « duplicate » quand le fichier avait déjà été importé.
+             */
+            status: string;
+            /** Records Imported */
+            records_imported: number;
+            /** Duplicates Count */
+            duplicates_count: number;
+            /** Rejected Count */
+            rejected_count: number;
+            /**
+             * Missing Data Count
+             * @description Nombre d'informations manquantes relevées pendant la normalisation.
+             */
+            missing_data_count: number;
+            /**
+             * Rejections
+             * @default []
+             */
+            rejections: components["schemas"]["ImportRejectionResponse"][];
+        };
+        /** ImportListResponse */
+        ImportListResponse: {
+            /** Imports */
+            imports: components["schemas"]["ImportRecordResponse"][];
+        };
+        /**
+         * ImportPreviewResponse
+         * @description Ce qu'on peut dire d'un fichier avant de l'importer.
+         */
+        ImportPreviewResponse: {
+            /** Filename */
+            filename: string;
+            /** Format */
+            format: string;
+            /**
+             * Row Count Sample
+             * @description Nombre de lignes de l'échantillon lu.
+             */
+            row_count_sample: number;
+            /**
+             * Columns
+             * @description Champs rencontrés dans l'échantillon, dans leur ordre d'apparition.
+             */
+            columns: string[];
+            /** Sample Rows */
+            sample_rows: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * ImportRecordResponse
+         * @description Le bilan d'une opération d'import.
+         */
+        ImportRecordResponse: {
+            /** Id */
+            id: string;
+            /** Source Name */
+            source_name: string;
+            /** Filename */
+            filename: string;
+            /** Format */
+            format: string;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /**
+             * Status
+             * @description « completed » quand l'import a abouti, « duplicate » quand le fichier avait déjà été importé.
+             */
+            status: string;
+            /** Records Imported */
+            records_imported: number;
+            /** Duplicates Count */
+            duplicates_count: number;
+            /** Rejected Count */
+            rejected_count: number;
+            /**
+             * Missing Data Count
+             * @description Nombre d'informations manquantes relevées pendant la normalisation.
+             */
+            missing_data_count: number;
+        };
+        /**
+         * ImportRejectionResponse
+         * @description Un enregistrement refusé, et la raison du refus.
+         */
+        ImportRejectionResponse: {
+            /** Line Number */
+            line_number: number;
+            /** Reason */
+            reason: string;
+            /** Raw Preview */
+            raw_preview: string | null;
         };
         /**
          * ImportSampleRequest
@@ -525,6 +738,126 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SystemStatusResponse"];
                 };
+            };
+        };
+    };
+    list_imports_api_v1_imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportListResponse"];
+                };
+            };
+        };
+    };
+    import_file_api_v1_imports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_file_api_v1_imports_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecordResponse"];
+                };
+            };
+            /** @description Format non reconnu, ou mapping invalide. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_import_detail_api_v1_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDetailResponse"];
+                };
+            };
+            /** @description Aucun import ne porte cet identifiant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_import_api_v1_imports_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_import_api_v1_imports_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreviewResponse"];
+                };
+            };
+            /** @description Format de fichier non reconnu. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

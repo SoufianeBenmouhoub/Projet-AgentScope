@@ -15,12 +15,15 @@ from agentscope.application.container import Container
 from agentscope.application.ports.mapping_proposal import MappingProposalPort
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
 from agentscope.application.use_cases.get_filter_options import GetFilterOptions
+from agentscope.application.use_cases.get_import_detail import GetImportDetail
 from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.application.use_cases.import_traces import ImportTraces
+from agentscope.application.use_cases.list_imports import ListImports
 from agentscope.application.use_cases.list_sessions import ListSessions
+from agentscope.application.use_cases.preview_import_file import PreviewImportFile
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
 from agentscope.infrastructure.config.settings import Settings, get_settings
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
@@ -33,6 +36,7 @@ from agentscope.infrastructure.persistence.sqlalchemy_database_health import (
 from agentscope.infrastructure.persistence.sqlalchemy_import_deduplication import (
     SqlAlchemyImportDeduplication,
 )
+from agentscope.infrastructure.persistence.sqlalchemy_import_read import SqlAlchemyImportRead
 from agentscope.infrastructure.persistence.sqlalchemy_trace_read import SqlAlchemyTraceRead
 from agentscope.infrastructure.persistence.sqlalchemy_trace_writer import SQLAlchemyTraceWriter
 from agentscope.infrastructure.sources.duckdb_file_reader import DuckDBFileReader
@@ -88,4 +92,7 @@ def build_container(settings: Settings | None = None) -> Container:
             trace_writer=SQLAlchemyTraceWriter(session_factory),
             deduplication=SqlAlchemyImportDeduplication(engine),
         ),
+        preview_import_file=PreviewImportFile(DuckDBFileReader()),
+        list_imports=ListImports(SqlAlchemyImportRead(engine)),
+        get_import_detail=GetImportDetail(SqlAlchemyImportRead(engine)),
     )
