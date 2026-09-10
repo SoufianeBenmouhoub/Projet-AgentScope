@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from agentscope.application.use_cases.delete_mapping import DeleteMapping
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
 from agentscope.application.use_cases.get_filter_options import GetFilterOptions
 from agentscope.application.use_cases.get_import_detail import GetImportDetail
@@ -20,9 +21,12 @@ from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.application.use_cases.import_traces import ImportTraces
 from agentscope.application.use_cases.list_imports import ListImports
+from agentscope.application.use_cases.list_mappings import ListMappings
 from agentscope.application.use_cases.list_sessions import ListSessions
 from agentscope.application.use_cases.preview_import_file import PreviewImportFile
+from agentscope.application.use_cases.preview_mapping import PreviewMapping
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
+from agentscope.application.use_cases.save_mapping import SaveMapping
 
 
 @dataclass(frozen=True)
@@ -46,3 +50,10 @@ class Container:
     preview_import_file: PreviewImportFile | None = None
     list_imports: ListImports | None = None
     get_import_detail: GetImportDetail | None = None
+
+    # Mise au point et bibliothèque des mappings. Optionnels pour la même raison : ils
+    # demandent un normaliseur et un stockage dont le tableau de bord n'a que faire.
+    preview_mapping: PreviewMapping | None = None
+    save_mapping: SaveMapping | None = None
+    list_mappings: ListMappings | None = None
+    delete_mapping: DeleteMapping | None = None

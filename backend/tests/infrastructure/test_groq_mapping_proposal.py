@@ -1,77 +1,80 @@
-"""Tests pour l'adaptateur Groq — aucun appel réseau réel (monkeypatch)."""
+"""Tests de l'adaptateur Groq : la réponse du modèle est simulée, aucun appel réseau.
+
+La relecture de la réponse est testée une fois pour toutes dans `test_llm_prompt.py` ;
+ce qui reste ici est propre à l'adaptateur — ce qu'il envoie, et ce qu'il fait quand le
+service cloud ne répond pas.
+"""
 
 from __future__ import annotations
 
-import json
 from types import SimpleNamespace
 
-from agentscope.application.ports.mapping_proposal import FieldSample, ImportSample
+import openai
+import pytest
+
+from agentscope.application.ports.mapping_proposal import (
+    FieldSample,
+    ImportSample,
+    MappingProposalUnavailable,
+)
 from agentscope.infrastructure.llm.groq import GroqMappingProposal
 
+A_SAMPLE = ImportSample(
+    source_format="jsonl",
+    fields=(FieldSample(name="session", example_values=("sess-1",)),),
+)
 
-def _fake_response(content: str) -> SimpleNamespace:
+
+def _adapter() -> GroqMappingProposal:
+    return GroqMappingProposal(model="test-model", api_key="test-key")
+
+
+def _response(content: str) -> SimpleNamespace:
     return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
 
 
-def _sample() -> ImportSample:
-    return ImportSample(
-        source_format="jsonl",
-        fields=(
-            FieldSample(name="id_session", example_values=("abc123", "abc124")),
-            FieldSample(name="horodatage", example_values=("2026-01-01T10:00:00Z",)),
-        ),
+def test_interroge_le_modele_configure_avec_la_question_du_projet(monkeypatch) -> None:
+    adapter = _adapter()
+    sent: dict[str, object] = {}
+
+    def capture(**kwargs):
+        sent.update(kwargs)
+        return _response('{"mappings": []}')
+
+    monkeypatch.setattr(adapter._client.chat.completions, "create", capture)
+
+    adapter.propose_mapping(A_SAMPLE)
+
+    assert sent["model"] == "test-model"
+    assert "session_id" in sent["messages"][0]["content"]
+
+
+def test_traduit_une_reponse_du_modele_en_proposition(monkeypatch) -> None:
+    adapter = _adapter()
+    payload = (
+        '{"mappings": [{"target_field": "session_id", "source_field": "session", '
+        '"confidence": 0.9, "note": "Nom proche"}]}'
     )
-
-
-def test_analyse_une_reponse_valide_avec_notes(monkeypatch):
-    adapter = GroqMappingProposal(model="llama-3.3-70b-versatile", api_key="test-key")
-
-    valid_json = json.dumps(
-        {
-            "mappings": [
-                {
-                    "target_field": "session_id",
-                    "source_field": "id_session",
-                    "confidence": 0.95,
-                    "note": "Correspondance évidente sur le nom du champ.",
-                },
-                {
-                    "target_field": "model",
-                    "source_field": None,
-                    "confidence": 0.0,
-                    "note": "Aucun champ du fichier ne correspond à un nom de modèle.",
-                },
-            ]
-        }
-    )
-
     monkeypatch.setattr(
-        adapter._client.chat.completions,
-        "create",
-        lambda **kwargs: _fake_response(valid_json),
+        adapter._client.chat.completions, "create", lambda **kwargs: _response(payload)
     )
 
-    result = adapter.propose_mapping(_sample())
+    proposal = adapter.propose_mapping(A_SAMPLE)
 
-    assert len(result.mappings) == 2
-    assert result.mappings[0].source_field == "id_session"
-    assert result.mappings[0].confidence == 0.95
-    assert result.mappings[1].source_field is None
-    assert len(result.unresolved_notes) == 1
-    assert "model" in result.unresolved_notes[0]
+    assert proposal.mappings[0].source_field == "session"
 
 
-def test_une_reponse_json_invalide_est_signalee_sans_planter(monkeypatch):
-    adapter = GroqMappingProposal(model="llama-3.3-70b-versatile", api_key="test-key")
+def test_un_service_injoignable_se_distingue_dune_absence_de_correspondance(monkeypatch) -> None:
+    """Renvoyer une proposition vide ferait croire que le fichier ne ressemble à rien,
+    alors que c'est Groq qui n'a pas répondu."""
+    adapter = _adapter()
 
-    monkeypatch.setattr(
-        adapter._client.chat.completions,
-        "create",
-        lambda **kwargs: _fake_response("ceci n'est pas du JSON"),
-    )
+    def refuse(**kwargs):
+        raise openai.APIConnectionError(request=SimpleNamespace())
 
-    result = adapter.propose_mapping(_sample())
+    monkeypatch.setattr(adapter._client.chat.completions, "create", refuse)
 
-    assert result.mappings == ()
-    assert len(result.unresolved_notes) == 1
-    assert "non exploitable" in result.unresolved_notes[0]
+    with pytest.raises(MappingProposalUnavailable) as error:
+        adapter.propose_mapping(A_SAMPLE)
+
+    assert "AI_API_KEY" in str(error.value)

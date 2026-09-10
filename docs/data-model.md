@@ -25,10 +25,11 @@ DuckDB est utilisé uniquement pour lire et profiler les fichiers sources.
 
 ## 2. Entités principales
 
-Le modèle repose sur six entités principales :
+Le modèle repose sur sept entités :
 
 - **Source** : origine d'un jeu de traces ou d'un dataset.
 - **Import** : opération d'importation d'un fichier.
+- **ImportRejection** : enregistrement qu'un import n'a pas pu retenir, et pourquoi.
 - **RawRecord** : enregistrement original provenant du fichier importé.
 - **Session** : session d'utilisation d'un agent.
 - **ModelCall** : appel à un modèle IA pendant une session.
@@ -47,6 +48,8 @@ Source
   │
   └──< Import
           │
+          ├──< ImportRejection
+          │
           ├──< RawRecord
           │
           └──< Session
@@ -54,21 +57,8 @@ Source
                   ├──< ModelCall
                   │
                   └──< ToolCall
----
+```
 
-## 4. Définition des tables
-
-### 4.1 Source
-
-Une ligne de la table `source` représente une source de données externe.
-
-Exemples : TraceLab, SWE-chat ou une autre source compatible.
-
-| Colonne | Type | Nullable | Description |
-|---|---|---|---|
-| `id` | UUID | Non | Identifiant interne de la source |
-| `name` | TEXT | Non | Nom de la source |
-| `version` | TEXT | Oui | Version de la source ou du dataset si connue |
 ---
 
 ## 4. Définition des tables
@@ -102,16 +92,39 @@ Représente une opération d'importation d'un fichier.
 | `format` | VARCHAR | NOT NULL | JSONL, CSV ou Parquet |
 | `imported_at` | TIMESTAMP | NOT NULL | Date de l'import |
 | `status` | VARCHAR | NOT NULL | Statut de l'import |
-| `records_imported` | INTEGER | NOT NULL | Nombre d'enregistrements importés |
+| `records_imported` | INTEGER | NOT NULL | Nombre d'enregistrements **réellement entrés en base**, rejets déduits |
 | `duplicates_count` | INTEGER | NOT NULL | Nombre de doublons détectés |
-| `rejected_count` | INTEGER | NOT NULL | Nombre de rejets |
-| `missing_data_count` | INTEGER | NOT NULL | Nombre d'informations manquantes |
+| `rejected_count` | INTEGER | NOT NULL | Nombre d'enregistrements écartés, égal au nombre de lignes dans `import_rejections` |
+| `missing_data_count` | INTEGER | NOT NULL | Nombre d'informations manquantes relevées sur des enregistrements **retenus** |
 
 Un même fichier ne doit pas être importé deux fois grâce à `file_hash`.
 
+`rejected_count` et `missing_data_count` ne comptent pas la même chose. Un compteur
+illisible sur un enregistrement par ailleurs valide ampute cet enregistrement d'une mesure :
+il entre en base, et c'est une information manquante. Un enregistrement sans identifiant de
+session n'entre pas du tout : c'est un rejet. Les additionner ferait croire qu'un fichier a
+été importé en entier alors qu'une partie a été écartée.
+
 ---
 
-### 4.3 RawRecord
+### 4.3 ImportRejection
+
+Représente un enregistrement qu'un import n'a pas pu retenir.
+
+| Colonne | Type | Contraintes | Description |
+|---|---|---|---|
+| `id` | UUID | PK | Identifiant unique |
+| `import_id` | UUID | FK → Import, INDEX | Import qui a écarté l'enregistrement |
+| `line_number` | INTEGER | NOT NULL | Rang de l'enregistrement dans le fichier, depuis 1 |
+| `reason` | TEXT | NOT NULL | Ce qui a empêché la normalisation |
+| `raw_preview` | TEXT | NULL | Début de l'enregistrement d'origine, pour le reconnaître |
+
+Une table plutôt qu'un simple compteur : un nombre dit qu'il y a eu un problème, il ne
+permet pas de le corriger. Ici, chaque rejet peut être retrouvé dans le fichier source.
+
+---
+
+### 4.4 RawRecord
 
 Représente un enregistrement original provenant du fichier importé.
 
@@ -127,7 +140,7 @@ Représente un enregistrement original provenant du fichier importé.
 
 ---
 
-### 4.4 Session
+### 4.5 Session
 
 Représente une session complète d'utilisation d'un agent.
 
@@ -150,7 +163,7 @@ l'information.
 
 ---
 
-### 4.5 ModelCall
+### 4.6 ModelCall
 
 Représente un appel à un modèle IA effectué pendant une session.
 
@@ -175,7 +188,7 @@ Une information absente n'est donc pas transformée en `0`.
 
 ---
 
-### 4.6 ToolCall
+### 4.7 ToolCall
 
 Représente un appel à un outil effectué pendant une session.
 
@@ -190,9 +203,20 @@ Une ligne de `ToolCall` correspond à une utilisation individuelle d'un outil.
 | `started_at` | TIMESTAMP | NULL | Début de l'appel |
 | `ended_at` | TIMESTAMP | NULL | Fin de l'appel |
 | `status` | VARCHAR | NULL | Statut de l'appel |
-| `error` | TEXT | NULL | Erreur éventuelle |
+| `is_error` | BOOLEAN | NULL | Issue de l'appel : vrai, faux, ou inconnue |
+| `error` | TEXT | NULL | Message d'erreur éventuel |
 
 Une ligne représente un appel d'outil, et non un type d'outil.
+
+`is_error` est nullable pour la même raison que les compteurs : une source qui ne publie
+pas l'issue d'un appel ne dit pas qu'il a réussi. Le taux d'erreur exclut ces appels de son
+dénominateur au lieu de les compter comme des réussites. `error` ne peut pas s'y substituer :
+un message d'erreur peut accompagner un appel qui a fini par aboutir, et en déduire l'échec
+donnerait un taux de 100 %.
+
+La latence n'est pas stockée : elle se déduit de `ended_at - started_at` quand les deux
+bornes existent. Une source qui ne publie qu'une durée déjà calculée demanderait une
+colonne, ce qui n'est pas le cas aujourd'hui.
 
 ---
 
@@ -202,16 +226,17 @@ Le modèle applique les règles suivantes :
 
 1. Chaque `Import` appartient à une `Source`.
 2. Chaque `RawRecord` appartient à un `Import`.
-3. Chaque `Session` appartient à une `Source`.
-4. Chaque `ModelCall` appartient à une `Session`.
-5. Chaque `ToolCall` appartient à une `Session`.
-6. Les clés étrangères garantissent que les relations entre les entités
+3. Chaque `ImportRejection` appartient à un `Import`.
+4. Chaque `Session` appartient à une `Source`.
+5. Chaque `ModelCall` appartient à une `Session`.
+6. Chaque `ToolCall` appartient à une `Session`.
+7. Les clés étrangères garantissent que les relations entre les entités
    restent valides.
-7. Les mesures inconnues restent `NULL` et ne sont jamais remplacées
+8. Les mesures inconnues restent `NULL` et ne sont jamais remplacées
    automatiquement par `0`.
-8. `file_hash` empêche le réimport du même fichier.
-9. `record_hash` permet de détecter les doublons d'enregistrements.
-10. Les données originales restent accessibles via `RawRecord`.
+9. `file_hash` empêche le réimport du même fichier.
+10. `record_hash` permet de détecter les doublons d'enregistrements.
+11. Les données originales restent accessibles via `RawRecord`.
 
 ---
 
@@ -231,6 +256,9 @@ RawRecord
 Session
    ↓
 ModelCall / ToolCall
+```
+
+---
 
 ## 7. Diagramme relationnel
 
@@ -257,8 +285,17 @@ ModelCall / ToolCall
 │ status       │
 └──────┬───────┘
        │ 1
-       │
-       │ N
+       ├──────────────────────┐
+       │ N                    │ N
+       │              ┌───────▼──────────┐
+       │              │ ImportRejection  │
+       │              ├──────────────────┤
+       │              │ id PK            │
+       │              │ import_id FK     │
+       │              │ line_number      │
+       │              │ reason           │
+       │              │ raw_preview      │
+       │              └──────────────────┘
 ┌──────▼──────────┐
 │    RawRecord    │
 ├─────────────────┤
@@ -296,10 +333,13 @@ ModelCall / ToolCall
 │ started_at     │ │ started_at     │
 │ ended_at       │ │ ended_at       │
 │ input_tokens   │ │ status         │
-│ output_tokens  │ │ error          │
-│ cached_tokens  │ │                │
+│ output_tokens  │ │ is_error       │
+│ cached_tokens  │ │ error          │
 │ status         │ │                │
 └────────────────┘ └────────────────┘
+```
+
+---
 
 ## 8. Gestion des doublons
 
@@ -352,5 +392,4 @@ mapping et de normalisation, et non par la création d'un modèle de données
 spécifique à chaque agent.
 
 Les futurs indicateurs du dashboard peuvent utiliser les mêmes entités
-normalisées sans dépendre du format original des fichiers.
-git 
+normalisées sans dépendre du format original des fichiers. 

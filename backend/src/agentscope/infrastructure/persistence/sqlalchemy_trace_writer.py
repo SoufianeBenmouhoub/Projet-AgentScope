@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -9,12 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as SQLAlchemySession
 from sqlalchemy.orm import sessionmaker
 
-from agentscope.application.ports.trace_write import TraceWritePort
+from agentscope.application.ports.trace_write import ImportRejection, TraceWritePort
 from agentscope.domain.trace.model_call import ModelCall
 from agentscope.domain.trace.session import Session
 from agentscope.domain.trace.tool_call import ToolCall
 from agentscope.infrastructure.persistence.models import (
     Import as ImportModel,
+)
+from agentscope.infrastructure.persistence.models import (
+    ImportRejection as ImportRejectionModel,
 )
 from agentscope.infrastructure.persistence.models import (
     ModelCall as ModelCallModel,
@@ -147,22 +151,40 @@ class SQLAlchemyTraceWriter(TraceWritePort):
         file_format: str,
         records_imported: int,
         missing_data_count: int,
+        rejections: Sequence[ImportRejection] = (),
     ) -> None:
-        """Enregistre une opération d'import."""
+        """Enregistre une opération d'import, avec le détail de ce qu'elle a refusé."""
 
-        self._db.add(
-            ImportModel(
-                source_id=source_id,
-                filename=filename,
-                file_hash=file_hash,
-                format=file_format,
-                imported_at=datetime.now(UTC),
-                status="completed",
-                records_imported=records_imported,
-                duplicates_count=0,
-                rejected_count=0,
-                missing_data_count=missing_data_count,
+        operation = ImportModel(
+            source_id=source_id,
+            filename=filename,
+            file_hash=file_hash,
+            format=file_format,
+            imported_at=datetime.now(UTC),
+            status="completed",
+            records_imported=records_imported,
+            duplicates_count=0,
+            rejected_count=len(rejections),
+            missing_data_count=missing_data_count,
+        )
+        self._db.add(operation)
+
+        if not rejections:
+            return
+
+        # L'identifiant de l'import doit exister avant que les rejets ne le référencent :
+        # les tables ne déclarent pas de `relationship`, SQLAlchemy ne connaît donc pas
+        # l'ordre d'insertion qu'impose la clé étrangère.
+        self._db.flush()
+
+        self._db.add_all(
+            ImportRejectionModel(
+                import_id=operation.id,
+                line_number=rejection.line_number,
+                reason=rejection.reason,
+                raw_preview=rejection.raw_preview,
             )
+            for rejection in rejections
         )
 
     def commit(self) -> None:

@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 
 from agentscope.application.container import Container
 from agentscope.application.ports.mapping_proposal import MappingProposalPort
+from agentscope.application.use_cases.delete_mapping import DeleteMapping
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
 from agentscope.application.use_cases.get_filter_options import GetFilterOptions
 from agentscope.application.use_cases.get_import_detail import GetImportDetail
@@ -13,10 +14,14 @@ from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.application.use_cases.import_traces import ImportTraces
 from agentscope.application.use_cases.list_imports import ListImports
+from agentscope.application.use_cases.list_mappings import ListMappings
 from agentscope.application.use_cases.list_sessions import ListSessions
 from agentscope.application.use_cases.preview_import_file import PreviewImportFile
+from agentscope.application.use_cases.preview_mapping import PreviewMapping
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
+from agentscope.application.use_cases.save_mapping import SaveMapping
 from agentscope.infrastructure.config.settings import Settings, get_settings
+from agentscope.infrastructure.llm.anthropic_api import AnthropicMappingProposal
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
 from agentscope.infrastructure.llm.groq import GroqMappingProposal
 from agentscope.infrastructure.llm.ollama import OllamaMappingProposal
@@ -29,31 +34,68 @@ from agentscope.infrastructure.persistence.sqlalchemy_import_deduplication impor
     SqlAlchemyImportDeduplication,
 )
 from agentscope.infrastructure.persistence.sqlalchemy_import_read import SqlAlchemyImportRead
+from agentscope.infrastructure.persistence.sqlalchemy_mapping_store import SqlAlchemyMappingStore
 from agentscope.infrastructure.persistence.sqlalchemy_trace_read import SqlAlchemyTraceRead
 from agentscope.infrastructure.persistence.sqlalchemy_trace_writer import SQLAlchemyTraceWriter
 from agentscope.infrastructure.sources.duckdb_file_reader import DuckDBFileReader
 
+#: Les fournisseurs d'IA câblés, du plus autonome au plus distant.
+AI_PROVIDERS = ("fake", "ollama", "groq", "anthropic")
+
 
 def build_mapping_proposal(settings: Settings) -> MappingProposalPort:
-    """Choisit l'adaptateur IA à utiliser selon la configuration."""
+    """Choisit l'adaptateur IA à utiliser selon la configuration.
+
+    Trois fournisseurs réels, interchangeables sans toucher au code : un modèle local
+    (Ollama) et deux modèles distants (Groq, Anthropic). La doublure « fake » reste la
+    valeur par défaut, pour qu'un clone du dépôt démarre et passe ses tests sans aucune
+    clé.
+    """
     if settings.ai_provider == "fake":
         return FakeMappingProposal()
+
     if settings.ai_provider == "ollama":
         return OllamaMappingProposal(
-            model=settings.ai_model,
+            model=_required_model(settings, "le nom du modèle téléchargé localement"),
             base_url=settings.ai_base_url or "http://localhost:11434/v1",
         )
+
     if settings.ai_provider == "groq":
         if not settings.ai_api_key:
             raise ValueError("AI_API_KEY est requis dans .env quand AI_PROVIDER=groq.")
         return GroqMappingProposal(
-            model=settings.ai_model,
+            model=_required_model(settings, "openai/gpt-oss-120b"),
             api_key=settings.ai_api_key,
             base_url=settings.ai_base_url or "https://api.groq.com/openai/v1",
         )
-    raise NotImplementedError(
-        f"Fournisseur IA non pris en charge pour l'instant : {settings.ai_provider}"
+
+    if settings.ai_provider == "anthropic":
+        return AnthropicMappingProposal(
+            model=_required_model(settings, "claude-opus-5"),
+            api_key=settings.ai_api_key,
+            base_url=settings.ai_base_url,
+        )
+
+    raise ValueError(
+        f"Fournisseur IA inconnu : « {settings.ai_provider} ». "
+        f"Valeurs acceptées pour AI_PROVIDER : {', '.join(AI_PROVIDERS)}."
     )
+
+
+def _required_model(settings: Settings, example: str) -> str:
+    """Refuse de deviner un modèle.
+
+    Écrire un identifiant de modèle par défaut dans le code le figerait là où toute la
+    configuration IA est censée tenir dans `.env` — et le jour où ce modèle disparaît, la
+    panne serait illisible.
+    """
+    if not settings.ai_model:
+        raise ValueError(
+            f"AI_PROVIDER={settings.ai_provider} exige AI_MODEL (par exemple « {example} »). "
+            "Le choix du modèle est une décision de configuration, pas une valeur écrite "
+            "dans le code."
+        )
+    return settings.ai_model
 
 
 def build_container(settings: Settings | None = None) -> Container:
@@ -71,6 +113,8 @@ def build_container(settings: Settings | None = None) -> Container:
     # toute la durée de vie de l'application ne serait jamais fermée, ne supporterait pas
     # deux requêtes simultanées, et resterait souillée après le premier échec.
     session_factory = sessionmaker(bind=engine)
+
+    mapping_store = SqlAlchemyMappingStore(engine)
 
     return Container(
         get_system_status=GetSystemStatus(
@@ -95,4 +139,11 @@ def build_container(settings: Settings | None = None) -> Container:
         preview_import_file=PreviewImportFile(DuckDBFileReader()),
         list_imports=ListImports(SqlAlchemyImportRead(engine)),
         get_import_detail=GetImportDetail(SqlAlchemyImportRead(engine)),
+        # L'essai à blanc utilise le **vrai** normaliseur, celui de l'import. Une imitation
+        # finirait par diverger, et l'aperçu promettrait un résultat que l'import ne donne
+        # pas — exactement ce qu'un aperçu est censé éviter.
+        preview_mapping=PreviewMapping(RecordNormalizer()),
+        save_mapping=SaveMapping(mapping_store),
+        list_mappings=ListMappings(mapping_store),
+        delete_mapping=DeleteMapping(mapping_store),
     )

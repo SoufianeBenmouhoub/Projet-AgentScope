@@ -19,7 +19,9 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "duckdb>=1.1",
     "httpx>=0.27",
-    "anthropic>=0.40",
+    # Les deux fournisseurs d'IA réels. Ollama expose un point d'accès compatible OpenAI,
+    # d'où le client openai pour le modèle local.
+    "anthropic>=1.0",
     "openai>=1.0",
 ]
 

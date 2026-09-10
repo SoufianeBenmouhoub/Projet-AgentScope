@@ -43,5 +43,6 @@ def create_app(
     app.include_router(metrics.router)
     app.include_router(sessions.router)
     app.include_router(mapping.router)
+    app.include_router(mapping.library)
 
     return app

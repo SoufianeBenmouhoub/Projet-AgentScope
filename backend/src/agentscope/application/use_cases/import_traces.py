@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 from agentscope.application.hash_file import calculate_file_hash
@@ -15,10 +18,14 @@ from agentscope.application.ports.normalization import (
     NormalizationIssue,
     RecordNormalizerPort,
 )
-from agentscope.application.ports.trace_write import TraceWritePort
+from agentscope.application.ports.trace_write import ImportRejection, TraceWritePort
 from agentscope.domain.trace.model_call import ModelCall
 from agentscope.domain.trace.session import Session
 from agentscope.domain.trace.tool_call import ToolCall
+
+#: Longueur du début d'enregistrement conservé avec un rejet. Assez pour reconnaître la
+#: ligne, pas assez pour recopier le fichier dans la base.
+PREVIEW_LENGTH = 500
 
 
 def _widen(known: Session, seen: Session) -> Session:
@@ -39,6 +46,31 @@ def _widen(known: Session, seen: Session) -> Session:
     )
 
 
+def _reason(issues: Sequence[NormalizationIssue]) -> str:
+    """Ce qu'on répond à « pourquoi cette ligne n'est pas passée ? ».
+
+    Le normaliseur explique presque toujours son refus. Le cas sans explication existe
+    quand même — un normaliseur qui rendrait une normalisation vide sans rien dire — et il
+    doit rester lisible plutôt que de produire une raison vide.
+    """
+    if not issues:
+        return "Enregistrement non normalisable, sans explication du normaliseur."
+    return " ".join(f"{issue.field} : {issue.message}" for issue in issues)
+
+
+def _preview(record: dict[str, Any]) -> str | None:
+    """Le début de l'enregistrement refusé, sous une forme lisible.
+
+    Un enregistrement qu'aucun encodeur JSON ne sait écrire ne doit pas faire échouer
+    l'import : on se rabat sur sa représentation textuelle. Le rejet vaut mieux que rien.
+    """
+    try:
+        text = json.dumps(record, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        text = str(record)
+    return text[:PREVIEW_LENGTH] or None
+
+
 @dataclass(frozen=True)
 class ImportResult:
     """Résultat d'un import de traces."""
@@ -49,6 +81,7 @@ class ImportResult:
     tool_calls_written: int
     issues: tuple[NormalizationIssue, ...]
     already_imported: bool = False
+    rejections: tuple[ImportRejection, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -87,6 +120,7 @@ class ImportTraces:
         records = self.file_reader.read(path, file_format)
 
         issues: list[NormalizationIssue] = []
+        rejections: list[ImportRejection] = []
 
         # Une session couvre en général plusieurs enregistrements : le normaliseur en produit
         # une par enregistrement, on les regroupe ici par identifiant externe. Sans ce
@@ -97,7 +131,7 @@ class ImportTraces:
         tool_calls: list[ToolCall] = []
 
         # 4. Normalisation.
-        for record in records:
+        for line_number, record in enumerate(records, start=1):
             normalized = self.normalizer.normalize(
                 record=record,
                 mapping=mapping,
@@ -105,6 +139,19 @@ class ImportTraces:
             )
 
             issues.extend(normalized.issues)
+
+            # Aucune session produite : l'enregistrement n'entre pas en base du tout. C'est
+            # un rejet, pas une information manquante — le confondre avec un compteur
+            # illisible ferait croire que le fichier a été importé en entier.
+            if not normalized.sessions:
+                rejections.append(
+                    ImportRejection(
+                        line_number=line_number,
+                        reason=_reason(normalized.issues),
+                        raw_preview=_preview(record),
+                    )
+                )
+                continue
 
             #  Le premier enregistrement d'une session fixe son identifiant interne ; les
             #  suivants rattachent leurs appels à celui-là et étendent ses bornes.
@@ -147,14 +194,17 @@ class ImportTraces:
         # 5. Enregistrement de la source.
         source_id = self.trace_writer.save_source(source)
 
-        # 6. Enregistrement de l'import avec son hash.
+        # 6. Enregistrement de l'import avec son hash. `records_imported` compte ce qui est
+        # réellement entré : additionner les rejets ferait mentir le bilan sur son propre
+        # résultat.
         self.trace_writer.save_import(
             source_id=source_id,
             filename=path.name,
             file_hash=file_hash,
             file_format=file_format or path.suffix.lstrip("."),
-            records_imported=len(records),
+            records_imported=len(records) - len(rejections),
             missing_data_count=len(issues),
+            rejections=rejections,
         )
 
         # 7. Validation de toute la transaction.
@@ -167,4 +217,5 @@ class ImportTraces:
             tool_calls_written=tool_calls_written,
             issues=tuple(issues),
             already_imported=False,
+            rejections=tuple(rejections),
         )

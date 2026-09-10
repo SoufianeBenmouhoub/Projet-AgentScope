@@ -16,6 +16,7 @@ from fastapi import HTTPException, Query, Request
 
 from agentscope.application.container import Container
 from agentscope.application.ports.trace_read import TraceFilter
+from agentscope.application.use_cases.delete_mapping import DeleteMapping
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
 from agentscope.application.use_cases.get_filter_options import GetFilterOptions
 from agentscope.application.use_cases.get_import_detail import GetImportDetail
@@ -25,9 +26,12 @@ from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
 from agentscope.application.use_cases.import_traces import ImportTraces
 from agentscope.application.use_cases.list_imports import ListImports
+from agentscope.application.use_cases.list_mappings import ListMappings
 from agentscope.application.use_cases.list_sessions import ListSessions
 from agentscope.application.use_cases.preview_import_file import PreviewImportFile
+from agentscope.application.use_cases.preview_mapping import PreviewMapping
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
+from agentscope.application.use_cases.save_mapping import SaveMapping
 
 
 def provide_container(request: Request) -> Container:
@@ -105,6 +109,26 @@ def provide_get_import_detail(request: Request) -> GetImportDetail:
 
 def provide_propose_mapping(request: Request) -> ProposeMapping:
     return provide_container(request).propose_mapping
+
+
+def provide_preview_mapping(request: Request) -> PreviewMapping:
+    container = provide_container(request)
+    return _required(container.preview_mapping, "preview_mapping")  # type: ignore[return-value]
+
+
+def provide_save_mapping(request: Request) -> SaveMapping:
+    container = provide_container(request)
+    return _required(container.save_mapping, "save_mapping")  # type: ignore[return-value]
+
+
+def provide_list_mappings(request: Request) -> ListMappings:
+    container = provide_container(request)
+    return _required(container.list_mappings, "list_mappings")  # type: ignore[return-value]
+
+
+def provide_delete_mapping(request: Request) -> DeleteMapping:
+    container = provide_container(request)
+    return _required(container.delete_mapping, "delete_mapping")  # type: ignore[return-value]
 
 
 def provide_trace_filter(
