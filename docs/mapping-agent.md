@@ -19,31 +19,60 @@ Two core design rules:
 The AI provider is chosen via the `AI_PROVIDER` environment variable, in
 `backend/.env` (see `backend/.env.example`).
 
-| `AI_PROVIDER` | Use case                                         | Required variables                        |
-|----------------|---------------------------------------------------|--------------------------------------------|
-| `fake`         | Automated tests, no network call                  | none                                       |
-| `ollama`       | Local development, free, model runs on your machine | `AI_MODEL`, `AI_BASE_URL` (optional, defaults to `http://localhost:11434/v1`) |
-| `anthropic`    | Paid provider (untested, no budget available)     | `AI_API_KEY`, `AI_MODEL`                   |
+| `AI_PROVIDER` | Use case                                              | Required variables                        |
+|----------------|--------------------------------------------------------|--------------------------------------------|
+| `fake`         | Automated tests, no network call                       | none                                       |
+| `ollama`       | Local development, free, model runs on your machine    | `AI_MODEL`, `AI_BASE_URL` (optional, defaults to `http://localhost:11434/v1`) |
+| `groq`         | Free cloud provider, OpenAI-compatible, no local install needed — lets anyone (teammates, reviewers) test the agent without running a model locally | `AI_MODEL`, `AI_API_KEY`, `AI_BASE_URL` (optional, defaults to `https://api.groq.com/openai/v1`) |
+| `anthropic`    | Paid provider — reserved for future work, not implemented yet | `AI_API_KEY`, `AI_MODEL`                   |
 
 By default (`AI_PROVIDER=fake`), no additional configuration is needed — this is what
 the automated tests use.
 
-## Testing locally with Ollama (free)
+## Testing locally with Ollama (free, runs on your machine)
 
 1. Install [Ollama](https://ollama.com/)
 2. Download a model: `ollama pull llama3.2` (or `mistral`)
 3. In `backend/.env`:
 
-  ```dotenv
+```dotenv
   AI_PROVIDER=ollama
   AI_MODEL=llama3.2
-  ```
+  AI_BASE_URL=http://localhost:11434/v1
+```
 
 4. Start the API: `uvicorn agentscope.main:app --reload`
 5. Call the route (see below)
 
-Two different local models (llama3.2 and mistral) were tested to confirm the agent
-stays interchangeable across models.
+## Testing with Groq (free, cloud-hosted)
+
+1. Create a free account at [console.groq.com](https://console.groq.com/) (no credit
+   card required) and generate an API key
+2. In `backend/.env`:
+
+```dotenv
+  AI_PROVIDER=groq
+  AI_MODEL=openai/gpt-oss-120b
+  AI_API_KEY=<your Groq key>
+```
+
+3. Start the API and call the route the same way as with Ollama
+
+Groq exposes an OpenAI-compatible API, just like Ollama — only the endpoint, the
+credentials and the model catalog differ. This is what let us add it as a second,
+independently testable provider without duplicating the prompt or parsing logic (see
+"Extending with a new provider" below). Groq's model catalog changes over time; check
+[console.groq.com/docs/models](https://console.groq.com/docs/models) if `AI_MODEL`
+returns a "model not found" error.
+
+Two local models (llama3.2 and mistral) and two independent providers — one local
+(Ollama), one cloud-hosted (Groq) — were tested end-to-end (real API call, real
+response) to confirm the agent works with genuinely different configurations, not just
+different model names. Proposals aren't expected to be identical between providers:
+smaller local models can reason less reliably about field mapping than larger cloud
+models, and may occasionally return a response that isn't valid JSON. In that case the
+adapter reports it in `unresolved_notes` instead of crashing or guessing — the
+analyze → validate → import flow stays correct either way, which is what matters.
 
 ## HTTP route
 
@@ -89,11 +118,19 @@ mapping individually.
 
 ## Extending with a new provider
 
-1. Create a class in `backend/src/agentscope/infrastructure/llm/`, implementing
-   `MappingProposalPort` (see `application/ports/mapping_proposal.py`)
+Most LLM providers (Ollama, Groq, and others) expose an API compatible with OpenAI's
+chat completions format — only the base URL, the API key and the model catalog change.
+For these:
+
+1. Create a small class in `backend/src/agentscope/infrastructure/llm/`, subclassing
+   `OpenAICompatibleMappingProposal` (`infrastructure/llm/base.py`) — see `ollama.py` or
+   `groq.py` for a two-line example
 2. Wire it into `build_mapping_proposal()` (`backend/src/agentscope/composition.py`),
    based on the value of `settings.ai_provider`
 3. No other file needs to change — that's the whole point of the port
+
+For a provider with a genuinely different API shape (not OpenAI-compatible), implement
+`MappingProposalPort` directly instead (see `application/ports/mapping_proposal.py`).
 
 ## Tests
 
@@ -101,4 +138,6 @@ mapping individually.
   from raw records
 - `tests/infrastructure/test_ollama_mapping_proposal.py`: the Ollama adapter, with the
   model's response simulated (`monkeypatch`) — no network call, runs in CI
+- `tests/infrastructure/test_groq_mapping_proposal.py`: the Groq adapter, same
+  principle — no network call, runs in CI
 - `tests/interfaces/test_mapping_router.py`: the HTTP route, using the `fake` test double

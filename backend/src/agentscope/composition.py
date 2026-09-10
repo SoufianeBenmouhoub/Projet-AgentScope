@@ -1,12 +1,3 @@
-"""Racine de composition.
-
-**Le seul endroit du projet où les implémentations concrètes sont choisies.** Changer de
-moteur de stockage ou de fournisseur d'IA se joue ici, en une ligne, sans toucher aux
-règles métier.
-
-C'est aussi le seul module, avec `main.py`, autorisé à importer `infrastructure/`.
-"""
-
 from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker
@@ -27,6 +18,7 @@ from agentscope.application.use_cases.preview_import_file import PreviewImportFi
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
 from agentscope.infrastructure.config.settings import Settings, get_settings
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
+from agentscope.infrastructure.llm.groq import GroqMappingProposal
 from agentscope.infrastructure.llm.ollama import OllamaMappingProposal
 from agentscope.infrastructure.normalization.record_normalizer import RecordNormalizer
 from agentscope.infrastructure.persistence.engine import build_engine
@@ -50,6 +42,14 @@ def build_mapping_proposal(settings: Settings) -> MappingProposalPort:
         return OllamaMappingProposal(
             model=settings.ai_model,
             base_url=settings.ai_base_url or "http://localhost:11434/v1",
+        )
+    if settings.ai_provider == "groq":
+        if not settings.ai_api_key:
+            raise ValueError("AI_API_KEY est requis dans .env quand AI_PROVIDER=groq.")
+        return GroqMappingProposal(
+            model=settings.ai_model,
+            api_key=settings.ai_api_key,
+            base_url=settings.ai_base_url or "https://api.groq.com/openai/v1",
         )
     raise NotImplementedError(
         f"Fournisseur IA non pris en charge pour l'instant : {settings.ai_provider}"
