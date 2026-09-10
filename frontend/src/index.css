@@ -534,7 +534,9 @@ dl {
 .import-source,
 .import-preview,
 .import-summary,
-.import-history {
+.import-history,
+.import-launch,
+.mapping {
   padding: 1rem 1.25rem;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -610,6 +612,127 @@ dl {
   font-weight: 600;
   color: var(--color-muted);
   text-transform: uppercase;
+}
+
+/* --- Mapping --- */
+
+.mapping__lead,
+.mapping__note {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.mapping__subtitle {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+  margin: 1rem 0 0;
+}
+
+.mapping__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+/* Un libellé et son champ côte à côte, au milieu d'une barre de boutons. */
+.field--inline {
+  flex-direction: column;
+  min-width: 12rem;
+}
+
+.btn--small {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.mapping__table-wrap {
+  overflow-x: auto;
+}
+
+.mapping__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.mapping__table th,
+.mapping__table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+/* La colonne de gauche porte le nom du champ et sa définition : elle a besoin de largeur,
+   mais pas de toute la table. */
+.mapping__table tbody th {
+  font-weight: 400;
+  max-width: 22rem;
+}
+
+.mapping__key {
+  font-weight: 600;
+  font-family: ui-monospace, "SFMono-Regular", "Consolas", monospace;
+}
+
+.mapping__required {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.mapping__description {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+/* Les valeurs lues peuvent être longues et sans espaces : elles ne doivent pas élargir la
+   page, seulement leur propre cellule. */
+.mapping__values {
+  max-width: 24rem;
+  word-break: break-word;
+}
+
+.mapping__unresolved,
+.mapping__issues {
+  font-size: 0.85rem;
+}
+
+.mapping__unresolved ul,
+.mapping__issues {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.mapping__library {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.mapping__library-list {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.mapping__library-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mapping-outcome {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .import-status {

@@ -64,6 +64,20 @@ export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Une suppression, dont la réponse n'a pas de corps (204).
+ *
+ * Tenter de lire un JSON là où le serveur n'en envoie pas ferait échouer une suppression
+ * pourtant réussie.
+ */
+export async function apiDelete(path: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: "DELETE" });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, path, "DELETE"));
+  }
+}
+
 export async function apiPostForm<T>(path: string, formData: FormData): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
   const response = await fetch(url, {

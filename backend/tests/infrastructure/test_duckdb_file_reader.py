@@ -26,6 +26,11 @@ def test_read_jsonl(reader: DuckDBFileReader, tmp_path: Path) -> None:
 
 
 def test_read_csv(reader: DuckDBFileReader, tmp_path: Path) -> None:
+    """Un CSV est lu tel qu'il est écrit : sans types, donc sans interprétation.
+
+    Le normaliseur relit ensuite chaque valeur selon le champ qu'elle alimente. Laisser
+    DuckDB deviner ici ne servirait qu'à décider deux fois, dont une fois trop tôt.
+    """
     path = tmp_path / "traces.csv"
     path.write_text(
         "id,name\n1,Alice\n2,Bob\n",
@@ -35,9 +40,33 @@ def test_read_csv(reader: DuckDBFileReader, tmp_path: Path) -> None:
     records = reader.read(path)
 
     assert records == [
-        {"id": 1, "name": "Alice"},
-        {"id": 2, "name": "Bob"},
+        {"id": "1", "name": "Alice"},
+        {"id": "2", "name": "Bob"},
     ]
+
+
+def test_un_csv_dhorodatages_marques_utc_est_lisible(
+    reader: DuckDBFileReader, tmp_path: Path
+) -> None:
+    """DuckDB en ferait des TIMESTAMP WITH TIME ZONE, dont la conversion vers Python échoue
+    faute d'une dépendance optionnelle — un fichier parfaitement valide, refusé."""
+    path = tmp_path / "sessions.csv"
+    path.write_text(
+        "sid,quand\nconv-1,2026-09-01T10:00:00Z\nconv-2,2026-09-02T11:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    records = reader.read(path)
+
+    assert records[0]["quand"] == "2026-09-01T10:00:00Z"
+
+
+def test_un_csv_conserve_les_zeros_initiaux(reader: DuckDBFileReader, tmp_path: Path) -> None:
+    """Un identifiant « 007 » devenu 7 ne se rattache plus à rien."""
+    path = tmp_path / "traces.csv"
+    path.write_text("sid\n007\n", encoding="utf-8")
+
+    assert reader.read(path)[0]["sid"] == "007"
 
 
 def test_read_parquet(reader: DuckDBFileReader, tmp_path: Path) -> None:

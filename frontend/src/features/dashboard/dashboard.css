@@ -284,6 +284,19 @@
   font-size: 0.8125rem;
 }
 
+/* L'enregistrement d'origine d'un rejet : il peut être long et sans espaces, il ne doit
+   pas pousser la page en largeur. */
+.quality__preview {
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.5rem;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .session__subtitle {
   font-size: 0.8125rem;
   text-transform: uppercase;

@@ -72,6 +72,7 @@ class FakeTraceWriter:
         file_format,
         records_imported,
         missing_data_count,
+        rejections=(),
     ):
         self.imports.append(
             {
@@ -81,6 +82,7 @@ class FakeTraceWriter:
                 "file_format": file_format,
                 "records_imported": records_imported,
                 "missing_data_count": missing_data_count,
+                "rejections": tuple(rejections),
             }
         )
 
@@ -229,6 +231,76 @@ def test_import_traces_orchestre_lecture_normalisation_et_ecriture(tmp_path):
 
     assert len(deduplication.received_hashes) == 1
     assert len(deduplication.received_hashes[0]) == 64
+
+
+class RefusingNormalizer:
+    """Refuse les enregistrements dépourvus de « sid », comme le fait le vrai normaliseur
+    face à un identifiant de session manquant."""
+
+    def __init__(self, normalized):
+        self.normalized = normalized
+
+    def normalize(self, record, mapping, source):
+        if "sid" in record:
+            return self.normalized
+        return NormalizedRecord(
+            sessions=[],
+            model_calls=[],
+            tool_calls=[],
+            issues=[NormalizationIssue(field="session_id", message="Identifiant absent.")],
+        )
+
+
+def _import_with(records, tmp_path):
+    path = tmp_path / "traces.jsonl"
+    path.write_text("test data", encoding="utf-8")
+
+    writer = FakeTraceWriter()
+    importer = ImportTraces(
+        file_reader=FakeFileReader(records),
+        normalizer=RefusingNormalizer(build_normalized_record()),
+        trace_writer=writer,
+        deduplication=FakeDeduplication(),
+    )
+    return importer(path=path, mapping={"session_id": "sid"}, source="test-source"), writer
+
+
+def test_un_enregistrement_non_normalisable_est_rejete_avec_son_rang_et_sa_raison(tmp_path):
+    """Un rejet sans rang ni raison dit qu'il y a eu un problème sans permettre de le
+    corriger."""
+    result, _ = _import_with([{"sid": "s1"}, {"who": "claude"}, {"sid": "s2"}], tmp_path)
+
+    assert len(result.rejections) == 1
+    rejected = result.rejections[0]
+    assert rejected.line_number == 2
+    assert "Identifiant absent." in rejected.reason
+    assert rejected.raw_preview == '{"who": "claude"}'
+
+
+def test_un_rejet_nest_pas_compte_comme_importe(tmp_path):
+    """Annoncer trois enregistrements importés et un rejeté sur trois lignes ferait mentir
+    le bilan sur son propre résultat."""
+    _, writer = _import_with([{"sid": "s1"}, {"who": "claude"}, {"sid": "s2"}], tmp_path)
+
+    assert writer.imports[0]["records_imported"] == 2
+    assert len(writer.imports[0]["rejections"]) == 1
+
+
+def test_un_rejet_ne_produit_ni_session_ni_appel(tmp_path):
+    result, writer = _import_with([{"who": "claude"}], tmp_path)
+
+    assert result.sessions_written == 0
+    assert writer.sessions == []
+    assert writer.model_calls == []
+
+
+def test_un_fichier_sans_rejet_nen_declare_aucun(tmp_path):
+    """Une liste vide veut dire « rien n'a été refusé », et doit le dire clairement."""
+    result, writer = _import_with([{"sid": "s1"}], tmp_path)
+
+    assert result.rejections == ()
+    assert writer.imports[0]["rejections"] == ()
+    assert writer.imports[0]["records_imported"] == 1
 
 
 def test_import_traces_refuse_un_fichier_deja_importe(tmp_path):

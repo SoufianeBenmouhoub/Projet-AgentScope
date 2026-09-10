@@ -7,7 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from agentscope.application.ports.import_read import ImportRecord
+from agentscope.application.ports.import_read import ImportRecord, RejectionRecord
+from agentscope.application.use_cases.get_import_detail import ImportDetail
 from agentscope.application.use_cases.preview_import_file import FilePreview
 
 
@@ -75,26 +76,39 @@ class ImportListResponse(BaseModel):
 class ImportRejectionResponse(BaseModel):
     """Un enregistrement refusé, et la raison du refus."""
 
-    line_number: int
+    line_number: int = Field(description="Rang de l'enregistrement dans le fichier, depuis 1.")
     reason: str
-    raw_preview: str | None
+    raw_preview: str | None = Field(
+        description="Début de l'enregistrement d'origine, pour le reconnaître."
+    )
+
+    @classmethod
+    def from_domain(cls, rejection: RejectionRecord) -> ImportRejectionResponse:
+        return cls(
+            line_number=rejection.line_number,
+            reason=rejection.reason,
+            raw_preview=rejection.raw_preview,
+        )
 
 
 class ImportDetailResponse(ImportRecordResponse):
     """Le bilan d'un import, avec le détail de ses rejets.
 
-    `rejections` est vide aujourd'hui : le moteur d'import compte les anomalies rencontrées
-    pendant la normalisation, mais ne conserve pas encore ligne par ligne ce qui a été
-    refusé. La liste existe pour que l'interface soit prête, et son vide est une limite
-    connue, pas un import sans problème.
+    Une liste vide veut dire que l'import n'a rien refusé — pas qu'on ne sait pas ce qu'il
+    a refusé.
     """
 
     rejections: list[ImportRejectionResponse] = []
 
     @classmethod
-    def from_domain(cls, record: ImportRecord) -> ImportDetailResponse:
-        summary = ImportRecordResponse.from_domain(record)
-        return cls(**summary.model_dump(), rejections=[])
+    def from_domain(cls, detail: ImportDetail) -> ImportDetailResponse:
+        summary = ImportRecordResponse.from_domain(detail.record)
+        return cls(
+            **summary.model_dump(),
+            rejections=[
+                ImportRejectionResponse.from_domain(rejection) for rejection in detail.rejections
+            ],
+        )
 
 
 def _serialisable(row: dict[str, Any]) -> dict[str, Any]:

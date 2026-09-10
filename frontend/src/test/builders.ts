@@ -9,6 +9,9 @@ import type {
   ActivitySeries,
   Aggregate,
   FilterOptions,
+  ImportDetailResponse,
+  ImportListResponse,
+  ImportRecordResponse,
   Indicator,
   KpiSummary,
   SessionDetail,
@@ -204,5 +207,42 @@ export function anEmptyKpiSummary(): KpiSummary {
         },
       }),
     ],
+  };
+}
+
+/* Import — l'historique et le bilan détaillé d'une opération. */
+
+export function anImportRecord(
+  overrides: Partial<ImportRecordResponse> = {},
+): ImportRecordResponse {
+  return {
+    id: "11111111-1111-1111-1111-111111111111",
+    source_name: "tracelab",
+    filename: "extrait.jsonl",
+    format: "jsonl",
+    imported_at: "2026-09-11T09:00:00Z",
+    status: "completed",
+    records_imported: 240,
+    duplicates_count: 0,
+    rejected_count: 0,
+    missing_data_count: 0,
+    ...overrides,
+  };
+}
+
+export function anImportHistory(
+  records: ImportRecordResponse[] = [anImportRecord()],
+): ImportListResponse {
+  return { imports: records };
+}
+
+/** Un bilan d'import, avec le détail de ce qu'il a refusé. */
+export function anImportDetail(
+  rejections: ImportDetailResponse["rejections"] = [],
+  overrides: Partial<ImportRecordResponse> = {},
+): ImportDetailResponse {
+  return {
+    ...anImportRecord({ rejected_count: rejections.length, ...overrides }),
+    rejections,
   };
 }

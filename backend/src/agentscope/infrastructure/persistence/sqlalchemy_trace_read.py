@@ -4,23 +4,23 @@ C'est l'implémentation réelle de `TraceReadPort`, celle qui remplace `EmptyTra
 qu'il y a des données. Aucun cas d'utilisation, aucune route et aucun composant du front
 n'a changé pour l'accueillir : seule la ligne de câblage de `composition.py` bouge.
 
-**Trois écarts entre ce que le dashboard attend et ce que le modèle fournit aujourd'hui.**
-Ils sont traités ici, explicitement, plutôt que masqués :
+**Trois écarts entre ce que le dashboard attend et ce que le modèle fournit.** Ils sont
+traités ici, explicitement, plutôt que masqués :
 
-1. **`is_error` n'existe pas** sur `tool_calls`. La table porte un `status` en texte libre
-   et un `error` textuel, dont aucun ne permet de distinguer « réussi » de « on ne sait
-   pas ». L'adaptateur renvoie donc `None`, et le taux d'erreur s'affiche indisponible.
-   Déduire l'échec de la présence d'un message d'erreur donnerait un taux de 100 %, ce qui
-   serait pire qu'une absence.
-2. **La latence n'existe pas** non plus. Elle est dérivée de `ended_at - started_at` quand
-   les deux bornes sont renseignées, et reste absente sinon.
+1. **`is_error` est à trois états.** La colonne est nullable et sans valeur par défaut :
+   vrai, faux, ou NULL quand la source ne publie pas l'issue. Le NULL est repris tel quel
+   et exclu du dénominateur du taux d'erreur. Le combler — en le comptant comme un succès,
+   ou en déduisant l'échec de la présence d'un message d'erreur — donnerait dans un cas un
+   taux sous-estimé, dans l'autre un taux de 100 %.
+2. **La latence n'existe pas** en colonne. Elle est dérivée de `ended_at - started_at`
+   quand les deux bornes sont renseignées, et reste absente sinon.
 3. **`cached_tokens` est repris comme tokens de création de cache**, en attendant
    confirmation. Si la colonne désigne en réalité les tokens *lus* du cache, c'est le
    libellé de l'indicateur qui devra changer, pas cette correspondance.
 
-Ces trois points sont des demandes ouvertes auprès du lot 2. Tant qu'elles ne sont pas
-tranchées, l'interface affiche « indisponible » là où l'information manque — ce qui rend le
-manque visible au lieu de le combler avec un chiffre inventé.
+Le principe est le même dans les trois cas : l'interface affiche « indisponible » là où
+l'information manque, ce qui rend le manque visible au lieu de le combler avec un chiffre
+inventé.
 """
 
 from __future__ import annotations

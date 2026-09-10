@@ -58,11 +58,25 @@ class MappingProposal:
     unresolved_notes: tuple[str, ...] = field(default_factory=tuple)
 
 
+class MappingProposalUnavailable(RuntimeError):
+    """Le fournisseur d'IA n'a pas pu être joint, ou a refusé la demande.
+
+    Cette exception existe pour ne pas confondre deux situations que tout oppose : « le
+    modèle n'a trouvé aucune correspondance » et « le modèle n'a pas répondu ». Renvoyer
+    une proposition vide dans le second cas ferait croire à l'utilisateur que son fichier
+    ne ressemble à rien, alors que c'est le service qui est indisponible.
+    """
+
+
 class MappingProposalPort(ABC):
     """Analyse un échantillon et propose une correspondance vers le modèle du domaine."""
 
     @abstractmethod
-    def propose_mapping(self, sample: ImportSample) -> MappingProposal: ...
+    def propose_mapping(self, sample: ImportSample) -> MappingProposal:
+        """Propose une correspondance.
+
+        Lève :class:`MappingProposalUnavailable` si le fournisseur est injoignable.
+        """
 
 
 def build_import_sample(

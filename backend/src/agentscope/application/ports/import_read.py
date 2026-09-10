@@ -28,8 +28,27 @@ class ImportRecord:
     missing_data_count: int
 
 
+@dataclass(frozen=True)
+class RejectionRecord:
+    """Un enregistrement refusé par un import, tel qu'il a été conservé."""
+
+    line_number: int
+    reason: str
+    raw_preview: str | None
+
+
 class ImportReadPort(ABC):
     """Lecture des opérations d'import persistées."""
 
     @abstractmethod
     def list_imports(self) -> Sequence[ImportRecord]: ...
+
+    @abstractmethod
+    def rejections(self, import_id: str) -> Sequence[RejectionRecord]:
+        """Les enregistrements qu'un import a refusés, dans l'ordre du fichier.
+
+        Une méthode à part de `list_imports` : l'historique se consulte souvent, le détail
+        des rejets rarement, et rien ne justifie de charger le second à chaque fois qu'on
+        demande le premier.
+        """
+        ...

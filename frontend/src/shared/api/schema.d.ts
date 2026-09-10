@@ -218,6 +218,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mapping/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Champs du modèle commun qu'un mapping peut renseigner
+         * @description La liste fermée que l'agent IA vise et que le moteur d'import applique.
+         *
+         *     L'interface la lit ici plutôt que de la recopier : une liste dupliquée finirait par
+         *     proposer des champs que le moteur refuse.
+         */
+        get: operations["mapping_fields_api_v1_mapping_fields_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mapping/propose": {
         parameters: {
             query?: never;
@@ -232,9 +255,80 @@ export interface paths {
          * @description Construit un échantillon à partir des enregistrements bruts envoyés, puis demande
          *     à l'agent IA configuré (`AI_PROVIDER`) de proposer une correspondance vers le modèle
          *     du domaine. Une correspondance non trouvée reste `None`, jamais une supposition.
+         *
+         *     Un fournisseur injoignable donne 502, pas une proposition vide : « le service n'a pas
+         *     répondu » et « aucun champ ne correspond » ne doivent pas se ressembler.
          */
         post: operations["propose_mapping_api_v1_mapping_propose_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mapping/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Essaie un mapping sur un échantillon, sans rien écrire
+         * @description Montre, champ par champ, les valeurs que le mapping lirait, et ce que l'import
+         *     produirait — sessions, appels, anomalies, refus.
+         *
+         *     C'est l'étape qui manque entre « l'IA propose » et « on importe » : sans elle, la seule
+         *     façon de vérifier un mapping est de lancer l'import et de nettoyer la base ensuite.
+         */
+        post: operations["preview_mapping_api_v1_mapping_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mappings enregistrés
+         * @description Les mappings conservés, du plus récemment modifié au plus ancien.
+         */
+        get: operations["list_mappings_api_v1_mappings_get"];
+        put?: never;
+        /**
+         * Enregistre un mapping vérifié
+         * @description Conserve le mapping sous ce nom, en remplaçant celui qui le portait déjà.
+         *
+         *     Le mapping est validé avant d'être conservé : un mapping inapplicable enregistré
+         *     aujourd'hui deviendrait une panne inexplicable le jour où quelqu'un le rechargerait.
+         */
+        post: operations["save_mapping_api_v1_mappings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mappings/{mapping_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Retire un mapping de la bibliothèque */
+        delete: operations["delete_mapping_api_v1_mappings__mapping_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -349,6 +443,32 @@ export interface components {
             note: string | null;
         };
         /**
+         * FieldOutcomeResponse
+         * @description Ce qu'un champ donnerait sur l'échantillon.
+         */
+        FieldOutcomeResponse: {
+            /** Target Field */
+            target_field: string;
+            /** Path */
+            path: string | null;
+            /** Scope */
+            scope: string;
+            /** Required */
+            required: boolean;
+            /**
+             * Examples
+             * @description Valeurs réellement lues, tronquées.
+             */
+            examples: string[];
+            /**
+             * Resolved
+             * @description Enregistrements où le chemin mène à une valeur.
+             */
+            resolved: number;
+            /** Total */
+            total: number;
+        };
+        /**
          * FilterOptionsResponse
          * @description Les valeurs sur lesquelles il est possible de filtrer, dérivées des traces importées.
          */
@@ -381,10 +501,8 @@ export interface components {
          * ImportDetailResponse
          * @description Le bilan d'un import, avec le détail de ses rejets.
          *
-         *     `rejections` est vide aujourd'hui : le moteur d'import compte les anomalies rencontrées
-         *     pendant la normalisation, mais ne conserve pas encore ligne par ligne ce qui a été
-         *     refusé. La liste existe pour que l'interface soit prête, et son vide est une limite
-         *     connue, pas un import sans problème.
+         *     Une liste vide veut dire que l'import n'a rien refusé — pas qu'on ne sait pas ce qu'il
+         *     a refusé.
          */
         ImportDetailResponse: {
             /** Id */
@@ -491,11 +609,17 @@ export interface components {
          * @description Un enregistrement refusé, et la raison du refus.
          */
         ImportRejectionResponse: {
-            /** Line Number */
+            /**
+             * Line Number
+             * @description Rang de l'enregistrement dans le fichier, depuis 1.
+             */
             line_number: number;
             /** Reason */
             reason: string;
-            /** Raw Preview */
+            /**
+             * Raw Preview
+             * @description Début de l'enregistrement d'origine, pour le reconnaître.
+             */
             raw_preview: string | null;
         };
         /**
@@ -569,12 +693,107 @@ export interface components {
             /** Indicators */
             indicators: components["schemas"]["IndicatorResponse"][];
         };
+        /**
+         * MappingContractResponse
+         * @description La liste fermée des champs visés, telle que le domaine la déclare.
+         *
+         *     L'interface la lit au lieu de la recopier : une liste dupliquée finirait par proposer
+         *     des champs que le moteur d'import refuse.
+         */
+        MappingContractResponse: {
+            /** Fields */
+            fields: components["schemas"]["TargetFieldResponse"][];
+        };
+        /**
+         * MappingPreviewRequest
+         * @description Un échantillon et un mapping à essayer dessus, sans rien écrire.
+         */
+        MappingPreviewRequest: {
+            /** Records */
+            records: {
+                [key: string]: unknown;
+            }[];
+            /** Mapping */
+            mapping: {
+                [key: string]: string | null;
+            };
+            /**
+             * Source Name
+             * @default
+             */
+            source_name: string;
+        };
+        /**
+         * MappingPreviewResponse
+         * @description Ce que l'import produirait avec ce mapping, sans l'avoir lancé.
+         */
+        MappingPreviewResponse: {
+            /** Fields */
+            fields: components["schemas"]["FieldOutcomeResponse"][];
+            /** Records */
+            records: number;
+            /** Sessions */
+            sessions: number;
+            /** Model Calls */
+            model_calls: number;
+            /** Tool Calls */
+            tool_calls: number;
+            /** Issues */
+            issues: string[];
+            /** Rejected */
+            rejected: number;
+        };
         /** MappingProposalResponse */
         MappingProposalResponse: {
             /** Mappings */
             mappings: components["schemas"]["FieldMappingResponse"][];
             /** Unresolved Notes */
             unresolved_notes: string[];
+        };
+        /**
+         * SaveMappingRequest
+         * @description Un mapping vérifié, à conserver sous un nom.
+         */
+        SaveMappingRequest: {
+            /**
+             * Name
+             * @description Nom sous lequel le retrouver. Réenregistrer remplace.
+             */
+            name: string;
+            /** Source Name */
+            source_name?: string | null;
+            /** Mapping */
+            mapping: {
+                [key: string]: string | null;
+            };
+        };
+        /** SavedMappingListResponse */
+        SavedMappingListResponse: {
+            /** Mappings */
+            mappings: components["schemas"]["SavedMappingResponse"][];
+        };
+        /** SavedMappingResponse */
+        SavedMappingResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Source Name */
+            source_name: string | null;
+            /** Mapping */
+            mapping: {
+                [key: string]: string | null;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SessionDetailResponse */
         SessionDetailResponse: {
@@ -675,6 +894,23 @@ export interface components {
              * @description Vrai si l'application peut rendre son service. Une application démarrée mais privée de son stockage est en ligne sans être opérationnelle.
              */
             operational: boolean;
+        };
+        /**
+         * TargetFieldResponse
+         * @description Un champ du modèle commun qu'un mapping peut renseigner.
+         */
+        TargetFieldResponse: {
+            /** Key */
+            key: string;
+            /**
+             * Scope
+             * @description session, model_call, tool_call ou collection.
+             */
+            scope: string;
+            /** Description */
+            description: string;
+            /** Required */
+            required: boolean;
         };
         /** ToolBreakdownResponse */
         ToolBreakdownResponse: {
@@ -1107,6 +1343,26 @@ export interface operations {
             };
         };
     };
+    mapping_fields_api_v1_mapping_fields_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingContractResponse"];
+                };
+            };
+        };
+    };
     propose_mapping_api_v1_mapping_propose_post: {
         parameters: {
             query?: never;
@@ -1128,6 +1384,131 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MappingProposalResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Le fournisseur d'IA configuré n'a pas répondu. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    preview_mapping_api_v1_mapping_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MappingPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingPreviewResponse"];
+                };
+            };
+            /** @description Mapping inapplicable. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_mappings_api_v1_mappings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedMappingListResponse"];
+                };
+            };
+        };
+    };
+    save_mapping_api_v1_mappings_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveMappingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedMappingResponse"];
+                };
+            };
+            /** @description Mapping inapplicable, ou sans nom. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_mapping_api_v1_mappings__mapping_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mapping_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Aucun mapping enregistré ne porte cet identifiant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

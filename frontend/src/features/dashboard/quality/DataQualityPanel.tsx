@@ -7,6 +7,7 @@ import {
   unavailableIndicators,
   type MeasureCoverage,
 } from "./dataQuality";
+import { LatestImportRejections } from "./LatestImportRejections";
 
 const PERCENT = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 });
 
@@ -128,10 +129,7 @@ export function DataQualityPanel({ summary, activity, bySource }: Props) {
       )}
 
       <h3 className="quality__subtitle">Rejets du dernier import</h3>
-      <p className="quality__note">
-        Non disponible : le bilan d'import n'est pas encore exposé par l'API. Cette section
-        listera les enregistrements rejetés et leur explication.
-      </p>
+      <LatestImportRejections />
     </section>
   );
 }

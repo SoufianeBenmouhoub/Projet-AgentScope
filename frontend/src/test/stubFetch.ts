@@ -14,15 +14,21 @@ export interface StubbedRoute {
   match: string;
   body: unknown;
   ok?: boolean;
+  /** Restreint la route à un verbe. Utile quand lire et écrire partagent la même URL. */
+  method?: string;
 }
 
 export function stubFetch(routes: StubbedRoute[]) {
-  const mock = vi.fn(async (input: unknown) => {
+  const mock = vi.fn(async (input: unknown, init?: RequestInit) => {
     const url = String(input);
-    const route = routes.find((candidate) => url.includes(candidate.match));
+    const method = init?.method ?? "GET";
+    const route = routes.find(
+      (candidate) =>
+        url.includes(candidate.match) && (!candidate.method || candidate.method === method),
+    );
 
     if (!route) {
-      throw new Error(`Aucune réponse simulée pour ${url}`);
+      throw new Error(`Aucune réponse simulée pour ${method} ${url}`);
     }
 
     return { ok: route.ok ?? true, json: async () => route.body };

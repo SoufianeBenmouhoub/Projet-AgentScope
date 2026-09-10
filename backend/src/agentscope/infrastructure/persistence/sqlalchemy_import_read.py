@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as DbSession
 
-from agentscope.application.ports.import_read import ImportReadPort, ImportRecord
-from agentscope.infrastructure.persistence.models import Import, Source
+from agentscope.application.ports.import_read import (
+    ImportReadPort,
+    ImportRecord,
+    RejectionRecord,
+)
+from agentscope.infrastructure.persistence.models import Import, ImportRejection, Source
 
 
 class SqlAlchemyImportRead(ImportReadPort):
@@ -37,4 +42,29 @@ class SqlAlchemyImportRead(ImportReadPort):
                 missing_data_count=import_row.missing_data_count,
             )
             for import_row, source_name in rows
+        )
+
+    def rejections(self, import_id: str) -> Sequence[RejectionRecord]:
+        try:
+            identifier = UUID(import_id)
+        except ValueError:
+            # Un identifiant mal formé désigne un import qui n'existe pas ; le laisser
+            # partir jusqu'à PostgreSQL produirait une erreur de type, pas une réponse.
+            return ()
+
+        statement = (
+            select(ImportRejection)
+            .where(ImportRejection.import_id == identifier)
+            .order_by(ImportRejection.line_number)
+        )
+        with DbSession(self._engine) as session:
+            rows = session.scalars(statement).all()
+
+        return tuple(
+            RejectionRecord(
+                line_number=row.line_number,
+                reason=row.reason,
+                raw_preview=row.raw_preview,
+            )
+            for row in rows
         )

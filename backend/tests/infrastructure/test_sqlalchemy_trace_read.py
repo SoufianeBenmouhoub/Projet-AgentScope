@@ -258,12 +258,12 @@ class TestToolCalls:
 
         assert records[0].latency_ms is None
 
-    def test_lissue_dun_appel_reste_inconnue_faute_de_colonne(self, db) -> None:
-        """Le modèle ne distingue pas encore « réussi » de « on ne sait pas ».
+    def test_une_issue_non_publiee_reste_inconnue_meme_avec_un_message_derreur(self, db) -> None:
+        """`is_error` a trois états, et le troisième n'est pas déductible.
 
-        Déduire l'échec de la présence d'un message d'erreur donnerait un taux d'erreur de
-        100 %. Tant que la colonne n'existe pas, l'indicateur s'affiche indisponible — ce
-        test tombera le jour où le lot 2 ajoutera `is_error`, et c'est voulu.
+        Un message d'erreur peut accompagner un appel qui a fini par réussir. En déduire
+        l'échec donnerait un taux d'erreur de 100 %. L'appel reste donc d'issue inconnue,
+        et sort du dénominateur.
         """
         source = _source(db, "tracelab")
         session = _session(db, source)
@@ -273,6 +273,17 @@ class TestToolCalls:
         records = SqlAlchemyTraceRead(db.get_bind()).tool_calls(TraceFilter())
 
         assert records[0].is_error is None
+
+    def test_une_issue_publiee_est_lue_telle_quelle(self, db) -> None:
+        source = _source(db, "tracelab")
+        session = _session(db, source)
+        db.add(ToolCall(id=uuid4(), session_id=session.id, tool_name="bash", is_error=True))
+        db.add(ToolCall(id=uuid4(), session_id=session.id, tool_name="read", is_error=False))
+        db.commit()
+
+        records = SqlAlchemyTraceRead(db.get_bind()).tool_calls(TraceFilter())
+
+        assert sorted(record.is_error for record in records) == [False, True]
 
     def test_un_outil_non_nomme_est_lu_sans_nom_invente(self, db) -> None:
         source = _source(db, "tracelab")

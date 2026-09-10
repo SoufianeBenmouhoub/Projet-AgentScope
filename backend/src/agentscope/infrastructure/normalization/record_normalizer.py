@@ -12,7 +12,7 @@ en général plusieurs enregistrements.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -191,6 +191,21 @@ def _whole(
         return None
 
 
+def _utc(moment: datetime) -> datetime:
+    """Rattache un horodatage sans fuseau à UTC, explicitement.
+
+    Deux chemins mènent ici à un horodatage nu : une source qui ne publie pas de fuseau, et
+    un lecteur de fichiers qui l'a perdu — DuckDB rend `2026-09-01T10:00:00Z` sous la forme
+    d'un `datetime` naïf.
+
+    Sans cette ligne, la valeur part telle quelle vers une colonne *avec* fuseau, et c'est
+    **PostgreSQL qui tranche, selon le fuseau de sa session**. Le même fichier importé sur
+    deux machines donnerait alors deux instants différents, sans que rien ne le signale.
+    Décider ici, et le dire, vaut mieux que dépendre de l'endroit où tourne la base.
+    """
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+
+
 def _moment(
     record: dict[str, Any],
     mapping: dict[str, str | None],
@@ -207,7 +222,7 @@ def _moment(
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value
+        return _utc(value)
     if not isinstance(value, str):
         issues.append(
             NormalizationIssue(field=field, message=f"« {value} » n'est pas une date ISO-8601.")
@@ -215,7 +230,7 @@ def _moment(
         return None
 
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return _utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
     except ValueError:
         issues.append(
             NormalizationIssue(field=field, message=f"« {value} » n'est pas une date ISO-8601.")
