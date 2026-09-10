@@ -173,7 +173,7 @@ class TestImport:
         assert importer.calls[0]["source"] == "tracelab"
         assert importer.calls[0]["mapping"]["session_id"] == "sid"
         # Les champs non renseignés par le mapping restent explicitement absents.
-        assert importer.calls[0]["mapping"]["started_at"] is None
+        assert importer.calls[0]["mapping"]["occurred_at"] is None
 
     def test_renvoie_le_bilan_de_limport(self) -> None:
         client, _ = build(records=[an_import_record()])

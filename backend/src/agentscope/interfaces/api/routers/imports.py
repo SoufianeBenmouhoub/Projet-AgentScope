@@ -22,6 +22,8 @@ from agentscope.application.use_cases.get_import_detail import GetImportDetail, 
 from agentscope.application.use_cases.import_traces import ImportTraces
 from agentscope.application.use_cases.list_imports import ListImports
 from agentscope.application.use_cases.preview_import_file import PreviewImportFile
+from agentscope.domain.mapping.contract import FIELDS_BY_KEY, InvalidMapping, validate_mapping
+from agentscope.domain.mapping.field_path import InvalidFieldPath
 from agentscope.interfaces.api.dependencies import (
     provide_get_import_detail,
     provide_import_traces,
@@ -37,8 +39,9 @@ from agentscope.interfaces.api.schemas.imports import (
 
 router = APIRouter(prefix="/api/v1/imports", tags=["imports"])
 
-#: Champs du modèle commun qu'un mapping doit renseigner.
-TARGET_FIELDS = ("session_id", "agent", "started_at", "ended_at")
+#: Champs du modèle commun qu'un mapping peut renseigner. La liste vient du domaine : la
+#: définir ici en double la ferait diverger au premier ajout.
+TARGET_FIELDS = tuple(sorted(FIELDS_BY_KEY))
 
 
 @router.get("", response_model=ImportListResponse, summary="Historique des imports")
@@ -131,32 +134,31 @@ def _resolve_mapping(raw: str | None) -> dict[str, str | None]:
     Un mapping vide n'est pas un mapping neutre : sans correspondance, la normalisation ne
     produit rien. À défaut d'indication, on suppose que le fichier utilise déjà les noms du
     modèle commun — hypothèse explicite, que l'aperçu permet de vérifier avant d'importer.
+
+    La validation elle-même appartient au domaine : les règles de ce qu'un mapping doit
+    contenir ne peuvent pas dépendre du fait qu'on arrive par HTTP.
     """
     if raw is None or not raw.strip():
-        return {field: field for field in TARGET_FIELDS}
+        parsed: dict[str, str | None] = {field: field for field in TARGET_FIELDS}
+    else:
+        try:
+            decoded = json.loads(raw)
+        except json.JSONDecodeError as error:
+            raise HTTPException(
+                status_code=422, detail=f"Le mapping n'est pas un JSON valide : {error.msg}."
+            ) from error
+
+        if not isinstance(decoded, dict):
+            raise HTTPException(
+                status_code=422,
+                detail="Le mapping doit associer des champs du modèle à des champs du fichier.",
+            )
+        parsed = decoded
 
     try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as error:
-        raise HTTPException(
-            status_code=422, detail=f"Le mapping n'est pas un JSON valide : {error.msg}."
-        ) from error
-
-    if not isinstance(parsed, dict):
-        raise HTTPException(
-            status_code=422,
-            detail="Le mapping doit associer des champs du modèle à des champs du fichier.",
-        )
-
-    unknown = sorted(set(parsed) - set(TARGET_FIELDS))
-    if unknown:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Champs inconnus dans le mapping : {', '.join(unknown)}. "
-                f"Champs acceptés : {', '.join(TARGET_FIELDS)}."
-            ),
-        )
+        validate_mapping(parsed)
+    except (InvalidMapping, InvalidFieldPath) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
     return {field: parsed.get(field) for field in TARGET_FIELDS}
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -188,6 +188,13 @@ class ToolCall(Base):
     )
     status: Mapped[str | None] = mapped_column(
         String(50),
+        nullable=True,
+    )
+    # Trois états : vrai, faux, et NULL quand la source ne publie pas l'issue. Le taux
+    # d'erreur exclut ce dernier cas de son dénominateur plutôt que de le compter comme une
+    # réussite. Sans valeur par défaut, pour la même raison que les colonnes de mesure.
+    is_error: Mapped[bool | None] = mapped_column(
+        Boolean,
         nullable=True,
     )
     error: Mapped[str | None] = mapped_column(

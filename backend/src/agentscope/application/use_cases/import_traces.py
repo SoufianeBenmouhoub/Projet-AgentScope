@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+from uuid import UUID
 
 from agentscope.application.hash_file import calculate_file_hash
 from agentscope.application.ports.file_read import FileReadPort
@@ -15,6 +16,27 @@ from agentscope.application.ports.normalization import (
     RecordNormalizerPort,
 )
 from agentscope.application.ports.trace_write import TraceWritePort
+from agentscope.domain.trace.model_call import ModelCall
+from agentscope.domain.trace.session import Session
+from agentscope.domain.trace.tool_call import ToolCall
+
+
+def _widen(known: Session, seen: Session) -> Session:
+    """Étend les bornes d'une session avec celles d'un nouvel enregistrement.
+
+    Début au plus tôt, fin au plus tard. Une borne absente ne réduit rien : ne pas connaître
+    la date d'un enregistrement n'apprend rien sur celles des autres.
+    """
+    starts = [moment for moment in (known.started_at, seen.started_at) if moment is not None]
+    ends = [moment for moment in (known.ended_at, seen.ended_at) if moment is not None]
+
+    return replace(
+        known,
+        started_at=min(starts) if starts else None,
+        ended_at=max(ends) if ends else None,
+        agent_name=known.agent_name or seen.agent_name,
+        status=known.status or seen.status,
+    )
 
 
 @dataclass(frozen=True)
@@ -65,11 +87,16 @@ class ImportTraces:
         records = self.file_reader.read(path, file_format)
 
         issues: list[NormalizationIssue] = []
-        sessions_written = 0
-        model_calls_written = 0
-        tool_calls_written = 0
 
-        # 4. Normalisation et écriture des traces.
+        # Une session couvre en général plusieurs enregistrements : le normaliseur en produit
+        # une par enregistrement, on les regroupe ici par identifiant externe. Sans ce
+        # regroupement, un extrait de 240 sessions en produirait des milliers, chacune
+        # réduite à une seule invocation.
+        sessions: dict[str, Session] = {}
+        model_calls: list[ModelCall] = []
+        tool_calls: list[ToolCall] = []
+
+        # 4. Normalisation.
         for record in records:
             normalized = self.normalizer.normalize(
                 record=record,
@@ -79,17 +106,43 @@ class ImportTraces:
 
             issues.extend(normalized.issues)
 
+            #  Le premier enregistrement d'une session fixe son identifiant interne ; les
+            #  suivants rattachent leurs appels à celui-là et étendent ses bornes.
+            remapped: dict[UUID, UUID] = {}
             for session in normalized.sessions:
-                self.trace_writer.save_session(session)
-                sessions_written += 1
+                key = session.external_id or str(session.id)
+                known = sessions.get(key)
 
-            for model_call in normalized.model_calls:
-                self.trace_writer.save_model_call(model_call)
-                model_calls_written += 1
+                if known is None:
+                    sessions[key] = session
+                else:
+                    remapped[session.id] = known.id
+                    sessions[key] = _widen(known, session)
 
-            for tool_call in normalized.tool_calls:
-                self.trace_writer.save_tool_call(tool_call)
-                tool_calls_written += 1
+            model_calls.extend(
+                replace(call, session_id=remapped.get(call.session_id, call.session_id))
+                for call in normalized.model_calls
+            )
+            tool_calls.extend(
+                replace(call, session_id=remapped.get(call.session_id, call.session_id))
+                for call in normalized.tool_calls
+            )
+
+        # 5. Écriture, **les sessions d'abord**. Leurs bornes ne sont connues qu'une fois
+        # tous les enregistrements parcourus, et un appel écrit avant la session qu'il
+        # référence viole la clé étrangère : l'ordre n'est pas une commodité.
+        for session in sessions.values():
+            self.trace_writer.save_session(session)
+
+        for model_call in model_calls:
+            self.trace_writer.save_model_call(model_call)
+
+        for tool_call in tool_calls:
+            self.trace_writer.save_tool_call(tool_call)
+
+        sessions_written = len(sessions)
+        model_calls_written = len(model_calls)
+        tool_calls_written = len(tool_calls)
 
         # 5. Enregistrement de la source.
         source_id = self.trace_writer.save_source(source)

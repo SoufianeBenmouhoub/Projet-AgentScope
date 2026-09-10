@@ -102,9 +102,7 @@ class SqlAlchemyTraceRead(TraceReadPort):
                     source=source.name,
                     tool_name=call.tool_name,
                     occurred_at=call.started_at,
-                    # Le modèle ne permet pas encore de distinguer « réussi » de
-                    # « inconnu » : on ne tranche pas à sa place.
-                    is_error=None,
+                    is_error=call.is_error,
                     latency_ms=_latency_ms(call.started_at, call.ended_at),
                 )
                 for call, session, source in db.execute(statement).all()

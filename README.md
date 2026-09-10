@@ -140,6 +140,7 @@ par un test** qui tourne dans la CI (`backend/tests/architecture/`).
 
 - **Provenance, versions et méthode de sélection des extraits :** [docs/data-sources.md](docs/data-sources.md)
 - **Trois observations chiffrées tirées des données :** [docs/observations.md](docs/observations.md)
+- **Les mappings, et le contrat qu'ils remplissent :** [docs/mappings.md](docs/mappings.md)
 - Le modèle relationnel : [docs/data-model.md](docs/data-model.md)
 
 Aucun jeu de données n'est versionné dans ce dépôt.
