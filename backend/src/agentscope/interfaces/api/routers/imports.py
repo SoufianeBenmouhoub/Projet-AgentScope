@@ -18,6 +18,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from agentscope.application.tracelab import mapping_for_source
 from agentscope.application.use_cases.get_import_detail import GetImportDetail, ImportNotFound
 from agentscope.application.use_cases.import_traces import ImportTraces
 from agentscope.application.use_cases.list_imports import ListImports
@@ -117,7 +118,7 @@ def import_file(
     Réimporter le même fichier ne crée pas de doublon : l'opération est reconnue et
     l'historique renvoie l'import d'origine, avec le statut correspondant.
     """
-    resolved = _resolve_mapping(mapping)
+    resolved = _resolve_mapping(mapping, source_name)
 
     with _materialised(file) as path:
         try:
@@ -128,7 +129,7 @@ def import_file(
     return _record_of(imports, filename=Path(file.filename or "").name)
 
 
-def _resolve_mapping(raw: str | None) -> dict[str, str | None]:
+def _resolve_mapping(raw: str | None, source_name: str) -> dict[str, str | None]:
     """Traduit le mapping reçu, ou en propose un à l'identique.
 
     Un mapping vide n'est pas un mapping neutre : sans correspondance, la normalisation ne
@@ -139,7 +140,7 @@ def _resolve_mapping(raw: str | None) -> dict[str, str | None]:
     contenir ne peuvent pas dépendre du fait qu'on arrive par HTTP.
     """
     if raw is None or not raw.strip():
-        parsed: dict[str, str | None] = {field: field for field in TARGET_FIELDS}
+        parsed = mapping_for_source(source_name) or {field: field for field in TARGET_FIELDS}
     else:
         try:
             decoded = json.loads(raw)

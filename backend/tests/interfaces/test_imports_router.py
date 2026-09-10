@@ -188,9 +188,21 @@ class TestImport:
     def test_sans_mapping_une_correspondance_a_lidentique_est_tentee(self) -> None:
         client, importer = build(records=[an_import_record()])
 
-        client.post("/api/v1/imports", files=a_file(), data={"source_name": "tracelab"})
+        client.post("/api/v1/imports", files=a_file(), data={"source_name": "autre-source"})
 
         assert importer.calls[0]["mapping"]["session_id"] == "session_id"
+
+    def test_sans_mapping_utilise_le_prereglage_tracelab(self) -> None:
+        client, importer = build(records=[an_import_record()])
+
+        client.post("/api/v1/imports", files=a_file(), data={"source_name": "TraceLab"})
+
+        mapping = importer.calls[0]["mapping"]
+        assert mapping["session_id"] == "session_id"
+        assert mapping["agent"] == "provider"
+        assert mapping["occurred_at"] == "timing_events[0].timestamp"
+        assert mapping["tools"] == "tools"
+        assert mapping["tool_ended_at"] == "result_at"
 
     def test_un_mapping_qui_nest_pas_du_json_est_refuse(self) -> None:
         client, _ = build()
