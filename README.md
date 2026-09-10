@@ -42,6 +42,7 @@ python -m venv .venv
 # source .venv/bin/activate   # macOS / Linux
 pip install -e ".[dev]"
 cp .env.example .env
+alembic upgrade head          # crée les tables ; sans ça la base est vide
 uvicorn agentscope.main:app --reload
 ```
 
@@ -57,6 +58,25 @@ npm run dev
 
 L'interface est sur http://localhost:5173. En développement, Vite redirige `/api` vers le
 back : rien d'autre à configurer.
+
+## Le parcours, depuis l'interface
+
+Intégrer une source **ne demande pas d'écrire de code**. L'écran d'import enchaîne :
+
+1. **Choisir un fichier** JSONL, CSV ou Parquet, et l'**apercevoir** — ses champs et
+   quelques lignes, sans rien écrire en base.
+2. **Demander un mapping à l'agent IA**, qui propose une correspondance champ par champ,
+   avec un score de confiance et une note. Ce qu'il n'a pas su rapprocher est dit, pas tu.
+3. **Corriger** ce que l'agent a proposé. Les champs visés viennent du contrat du domaine,
+   exposé par l'API : ni l'interface ni l'agent n'en gardent une copie.
+4. **Vérifier sur l'échantillon.** L'essai à blanc fait tourner le vrai normaliseur et
+   montre les valeurs réellement lues, puis ce que l'import produirait — sessions, appels,
+   anomalies, refus. Rien n'est écrit.
+5. **Enregistrer le mapping** sous un nom, pour le rejouer sur le fichier suivant.
+6. **Importer** avec ce mapping. Le bilan dit ce qui est entré, ce qui a été refusé et
+   pourquoi.
+
+Le détail des champs et des règles est dans [docs/mappings.md](docs/mappings.md).
 
 ## Tests
 
@@ -93,7 +113,12 @@ toucher au code. Trois configurations sont documentées dans `backend/.env.examp
 | Configuration | `AI_PROVIDER` | `AI_MODEL` | `AI_BASE_URL` | Clé nécessaire |
 |---|---|---|---|---|
 | Ollama (local) | `ollama` | le modèle téléchargé | `http://localhost:11434/v1` | non |
+| Anthropic (distant) | `anthropic` | par ex. `claude-opus-5` | — | oui (`AI_API_KEY`) |
 | Doublure de test | `fake` | — | — | non |
+
+Les deux fournisseurs réels posent **la même question** et relisent la réponse **de la même
+façon** (`infrastructure/llm/prompt.py`) : passer de l'un à l'autre change le modèle, et
+rien d'autre. C'est ce qui rend la comparaison honnête.
 
 La valeur par défaut est `fake`, pour qu'un clone du dépôt démarre et passe ses tests sans
 aucune clé API.

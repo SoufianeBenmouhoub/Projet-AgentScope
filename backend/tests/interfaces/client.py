@@ -17,17 +17,23 @@ from agentscope.application.ports.trace_read import (
     SessionRecord,
     ToolCallRecord,
 )
+from agentscope.application.use_cases.delete_mapping import DeleteMapping
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
 from agentscope.application.use_cases.get_filter_options import GetFilterOptions
 from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
+from agentscope.application.use_cases.list_mappings import ListMappings
 from agentscope.application.use_cases.list_sessions import ListSessions
+from agentscope.application.use_cases.preview_mapping import PreviewMapping
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
+from agentscope.application.use_cases.save_mapping import SaveMapping
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
+from agentscope.infrastructure.normalization.record_normalizer import RecordNormalizer
 from agentscope.interfaces.api.app import create_app
 from tests.fakes.database_health import FakeDatabaseHealth
+from tests.fakes.mapping_store import InMemoryMappingStore
 from tests.fakes.trace_read import InMemoryTraceRead
 
 
@@ -38,6 +44,7 @@ def build_container(
     tool_calls: Sequence[ToolCallRecord] = (),
     database_reachable: bool = True,
     version: str = "0.1.0",
+    mapping_store: InMemoryMappingStore | None = None,
 ) -> Container:
     """Le conteneur du tableau de bord, rempli de doublures.
 
@@ -50,6 +57,10 @@ def build_container(
         model_calls=model_calls,
         tool_calls=tool_calls,
     )
+
+    # La mise au point d'un mapping n'a besoin d'aucune base : le normaliseur est le vrai,
+    # et la bibliothèque tient en mémoire.
+    store = mapping_store or InMemoryMappingStore()
 
     return Container(
         get_system_status=GetSystemStatus(
@@ -65,6 +76,10 @@ def build_container(
         get_session_detail=GetSessionDetail(traces),
         get_filter_options=GetFilterOptions(traces),
         list_sessions=ListSessions(traces),
+        preview_mapping=PreviewMapping(RecordNormalizer()),
+        save_mapping=SaveMapping(store),
+        list_mappings=ListMappings(store),
+        delete_mapping=DeleteMapping(store),
     )
 
 
@@ -75,6 +90,7 @@ def build_client(
     tool_calls: Sequence[ToolCallRecord] = (),
     database_reachable: bool = True,
     version: str = "0.1.0",
+    mapping_store: InMemoryMappingStore | None = None,
 ) -> TestClient:
     container = build_container(
         sessions=sessions,
@@ -82,6 +98,7 @@ def build_client(
         tool_calls=tool_calls,
         database_reachable=database_reachable,
         version=version,
+        mapping_store=mapping_store,
     )
 
     return TestClient(create_app(container=container, version=version))

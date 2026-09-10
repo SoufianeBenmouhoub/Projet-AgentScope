@@ -5,7 +5,7 @@ fait à partir du mapping qu'on lui donne. C'est ce qui permet d'intégrer une n
 source par configuration plutôt qu'en écrivant un connecteur.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from agentscope.application.ports.normalization import NormalizedRecord
@@ -76,6 +76,30 @@ class TestSession:
 
         assert result.sessions[0].started_at is None
         assert any(issue.field == "occurred_at" for issue in result.issues)
+
+    def test_une_date_sans_fuseau_est_rattachee_a_utc(self) -> None:
+        """Sinon c'est PostgreSQL qui tranche, selon le fuseau de sa session : le même
+        fichier importé sur deux machines donnerait deux instants différents."""
+        result = normalize({"conversation_id": "session-123", "start_time": "2026-09-08T10:30:00"})
+
+        assert result.sessions[0].started_at == datetime(2026, 9, 8, 10, 30, tzinfo=UTC)
+
+    def test_un_horodatage_deja_lu_comme_date_par_le_lecteur_est_rattache_a_utc(self) -> None:
+        """DuckDB rend « 2026-09-08T10:30:00Z » sous la forme d'un `datetime` naïf : le
+        marqueur est perdu avant même d'arriver ici."""
+        result = normalize(
+            {"conversation_id": "session-123", "start_time": datetime(2026, 9, 8, 10, 30)}
+        )
+
+        assert result.sessions[0].started_at == datetime(2026, 9, 8, 10, 30, tzinfo=UTC)
+
+    def test_un_fuseau_publie_par_la_source_est_respecte(self) -> None:
+        """Rattacher à UTC ne veut pas dire écraser : une source qui dit son fuseau est crue."""
+        result = normalize(
+            {"conversation_id": "session-123", "start_time": "2026-09-08T12:30:00+02:00"}
+        )
+
+        assert result.sessions[0].started_at == datetime(2026, 9, 8, 10, 30, tzinfo=UTC)
 
 
 class TestModelCall:

@@ -51,6 +51,23 @@ export type ImportListResponse = Schemas["ImportListResponse"];
 export type ImportDetailResponse = Schemas["ImportDetailResponse"];
 export type ImportRejectionResponse = Schemas["ImportRejectionResponse"];
 
+/* Mapping — le contrat visé, la proposition de l'IA, l'essai à blanc, la bibliothèque. */
+
+export type TargetField = Schemas["TargetFieldResponse"];
+export type MappingContract = Schemas["MappingContractResponse"];
+export type FieldMapping = Schemas["FieldMappingResponse"];
+export type MappingProposal = Schemas["MappingProposalResponse"];
+export type FieldOutcome = Schemas["FieldOutcomeResponse"];
+export type MappingPreview = Schemas["MappingPreviewResponse"];
+export type SavedMapping = Schemas["SavedMappingResponse"];
+export type SavedMappingList = Schemas["SavedMappingListResponse"];
+
+/**
+ * Un mapping tel qu'il circule : champ du modèle commun → chemin dans l'enregistrement
+ * source, ou `null` quand la source ne publie rien pour ce champ.
+ */
+export type FieldMappingValues = Record<string, string | null>;
+
 /**
  * Les statuts et formats restent des unions écrites à la main : le serveur les expose en
  * texte libre, et les figer ici documente ce que l'interface sait afficher.

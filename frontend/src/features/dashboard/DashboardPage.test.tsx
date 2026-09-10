@@ -6,6 +6,8 @@ import {
   aKpiSummary,
   anActivitySeries,
   anEmptyKpiSummary,
+  anImportDetail,
+  anImportHistory,
   anIndicator,
   aSessionDetail,
   aSessionList,
@@ -34,8 +36,14 @@ const ACTIVITY = "/api/v1/metrics/activity";
 const TOOLS = "/api/v1/metrics/tools";
 const SESSION_DETAIL = "/api/v1/sessions/";
 const SESSION_LIST = "/api/v1/sessions";
+const IMPORT_DETAIL = "/api/v1/imports/";
+const IMPORT_HISTORY = "/api/v1/imports";
 
-function stubDashboard(summary: unknown, options = someFilterOptions()) {
+function stubDashboard(
+  summary: unknown,
+  options = someFilterOptions(),
+  imports: { history?: unknown; detail?: unknown } = {},
+) {
   return stubFetch([
     { match: FILTERS, body: options },
     { match: ACTIVITY, body: anActivitySeries() },
@@ -44,6 +52,9 @@ function stubDashboard(summary: unknown, options = someFilterOptions()) {
     // Le détail avant la liste : « /api/v1/sessions/ » est plus spécifique.
     { match: SESSION_DETAIL, body: aSessionDetail() },
     { match: SESSION_LIST, body: aSessionList() },
+    // Même raison pour les imports : le détail avant l'historique.
+    { match: IMPORT_DETAIL, body: imports.detail ?? anImportDetail() },
+    { match: IMPORT_HISTORY, body: imports.history ?? anImportHistory() },
   ]);
 }
 
@@ -281,13 +292,53 @@ describe("DashboardPage — qualité des données", () => {
     });
   });
 
-  it("annonce que le bilan d'import n'est pas encore exposé", async () => {
+  it("montre ce que le dernier import a refusé, avec la ligne et la raison", async () => {
+    // Sans cette section, un fichier amputé produirait des chiffres justes sur ce qui
+    // reste, et rien ne dirait ce qui manque.
+    stubDashboard(aKpiSummary(), someFilterOptions(), {
+      detail: anImportDetail([
+        {
+          line_number: 7,
+          reason: "session_id : Sans identifiant de session, l'enregistrement ne peut être rattaché.",
+          raw_preview: '{"who": "claude"}',
+        },
+      ]),
+    });
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Ligne 7")).toBeTruthy();
+    });
+    expect(screen.getByText(/Sans identifiant de session/)).toBeTruthy();
+  });
+
+  it("dit qu'aucun enregistrement n'a été refusé plutôt que de rester muet", async () => {
     stubDashboard(aKpiSummary());
 
     renderWithProviders(<DashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/le bilan d'import n'est pas encore exposé/i)).toBeTruthy();
+      expect(screen.getByText(/aucun enregistrement refusé/i)).toBeTruthy();
+    });
+  });
+
+  it("distingue un historique illisible d'une absence de rejet", async () => {
+    // « On n'a pas pu lire » et « il n'y a rien » ne doivent pas s'afficher pareil.
+    stubFetch([
+      { match: FILTERS, body: someFilterOptions() },
+      { match: ACTIVITY, body: anActivitySeries() },
+      { match: TOOLS, body: aToolBreakdown() },
+      { match: SUMMARY, body: aKpiSummary() },
+      { match: SESSION_DETAIL, body: aSessionDetail() },
+      { match: SESSION_LIST, body: aSessionList() },
+      { match: IMPORT_HISTORY, body: { detail: "panne" }, ok: false },
+    ]);
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/historique des imports indisponible/i)).toBeTruthy();
     });
   });
 });

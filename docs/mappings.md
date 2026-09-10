@@ -105,8 +105,73 @@ format à plat qu'un format imbriqué.
 }
 ```
 
-Sans champ `tools`, aucun appel d'outil n'est produit — ce n'est pas une anomalie, seulement
-une source qui n'en publie pas. Les indicateurs correspondants s'affichent indisponibles.
+**Résultat vérifié** sur un extrait de quatre lignes, dont deux partagent une conversation
+et deux ont une cellule vide :
+
+```
+enregistrements lus : 4     sessions : 3
+appels au modèle    : 4     appels d'outils : 0     anomalies : 0
+
+sessions_total        3        couverture 3/3
+model_calls_total     4        couverture 4/4
+input_tokens_total    9 170    couverture 3/4
+cache_creation_tokens indisponible, couverture 0/4
+```
+
+Trois points, encore :
+
+**Une cellule vide reste vide.** `input_tokens_total` porte sur 3 des 4 appels, et le dit.
+La quatrième ligne ne contribue pas zéro à la somme.
+
+**Sans champ `tools`, aucun appel d'outil n'est produit** — ce n'est pas une anomalie,
+seulement une source qui n'en publie pas. Les indicateurs correspondants s'affichent
+indisponibles, pas à zéro.
+
+**Un CSV est lu sans types.** Un fichier plat n'en publie pas ; ceux que le lecteur
+devinerait effaceraient les zéros initiaux d'un identifiant, et rendraient illisible une
+colonne d'horodatages uniformément marqués `Z`. Le normaliseur relit chaque valeur selon le
+champ qu'elle alimente, ce qui laisse la décision à l'endroit qui sait de quel champ il
+s'agit.
+
+---
+
+## Mettre un mapping au point depuis l'interface
+
+Aucune de ces étapes ne demande d'écrire du code. L'écran d'import les enchaîne dans cet
+ordre, et chacune répond à une question que la précédente laisse ouverte.
+
+| Étape | Ce qu'on fait | La route |
+|---|---|---|
+| 1. Aperçu | Lire les champs du fichier et quelques lignes, sans rien écrire | `POST /api/v1/imports/preview` |
+| 2. Proposition | Demander à l'agent IA une correspondance | `POST /api/v1/mapping/propose` |
+| 3. Correction | Corriger case par case ; les champs visés viennent du contrat | `GET /api/v1/mapping/fields` |
+| 4. Essai à blanc | Voir les valeurs réellement lues et ce que l'import produirait | `POST /api/v1/mapping/preview` |
+| 5. Enregistrement | Conserver le mapping sous un nom, pour le rejouer | `POST /api/v1/mappings` |
+| 6. Import | Importer avec **ce** mapping | `POST /api/v1/imports` |
+
+**L'étape 4 est celle qui manquait.** Sans elle, la seule façon de savoir si un mapping est
+juste était de lancer l'import et de regarder la base — puis de la nettoyer quand il ne
+l'était pas. L'essai à blanc fait tourner **le vrai normaliseur**, celui de l'import, sur
+l'échantillon : ce qu'il annonce est ce que l'import fera.
+
+Il répond à deux questions que rien d'autre ne recoupe :
+
+- **Chaque champ vise-t-il la bonne colonne ?** Les valeurs lues sont affichées. Un chemin
+  qui pointe à côté rend une colonne vide (« 0/N ») ; un chemin qui pointe sur la mauvaise
+  colonne rend des valeurs qui ne ressemblent pas à ce qu'on attend. Aucun compteur ne
+  montre la seconde erreur.
+- **Qu'est-ce que ça donnerait ?** Sessions, appels au modèle, appels d'outils, anomalies,
+  et le nombre d'enregistrements qui seraient refusés.
+
+**Ce qui est enregistré, ce sont des correspondances entre champs, pas la proposition d'un
+modèle.** Un mapping conservé reste donc utilisable après un changement de fournisseur ou
+de modèle IA : rien de ce qu'on stocke ne dépend de qui l'a proposé. Réenregistrer sous le
+même nom remplace — corriger un mapping consiste à le réenregistrer, et laisser s'accumuler
+« tracelab », « tracelab 2 », « tracelab final » ne rendrait service à personne.
+
+Un mapping est validé **avant** d'être conservé. Un mapping inapplicable enregistré
+aujourd'hui deviendrait une panne inexplicable le jour où quelqu'un le rechargerait, sur un
+autre fichier, sans se souvenir de rien.
 
 ---
 
@@ -117,5 +182,6 @@ une source qui n'en publie pas. Les indicateurs correspondants s'affichent indis
   intégrée sans étendre le moteur.
 - **Un seul niveau de tableau.** `tools[]` est parcouru, mais pas un tableau à l'intérieur
   d'un tableau.
-- **Pas encore enregistré ni réutilisable.** Le mapping se fournit à chaque import ; le
-  stocker pour le rejouer sur un fichier suivant reste à faire.
+- **L'essai à blanc porte sur l'échantillon, pas sur le fichier entier.** Un chemin qui
+  fonctionne sur les cent premières lignes peut échouer plus loin. C'est pourquoi l'import
+  conserve aussi le détail de ses rejets.

@@ -8,18 +8,20 @@ aucune base.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from fastapi.testclient import TestClient
 
-from agentscope.application.container import Container
 from agentscope.application.ports.file_read import FileReadPort
-from agentscope.application.ports.import_read import ImportReadPort, ImportRecord
+from agentscope.application.ports.import_read import ImportRecord, RejectionRecord
+from agentscope.application.use_cases.get_import_detail import GetImportDetail
 from agentscope.application.use_cases.list_imports import ListImports
 from agentscope.application.use_cases.preview_import_file import PreviewImportFile
 from agentscope.interfaces.api.app import create_app
+from tests.fakes.import_read import InMemoryImportRead
 from tests.interfaces.client import build_container
 
 
@@ -42,14 +44,6 @@ class FakeFileReader(FileReadPort):
         if self._fails:
             raise ValueError("Format de fichier non supporté : xlsx")
         return list(self._rows)
-
-
-class FakeImportRead(ImportReadPort):
-    def __init__(self, records: list[ImportRecord] | None = None) -> None:
-        self._records = records or []
-
-    def list_imports(self) -> list[ImportRecord]:
-        return list(self._records)
 
 
 class RecordingImportTraces:
@@ -82,21 +76,19 @@ def build(
     reader: FileReadPort | None = None,
     importer: Any = None,
     records: list[ImportRecord] | None = None,
+    rejections: dict[str, tuple[RejectionRecord, ...]] | None = None,
 ) -> tuple[TestClient, RecordingImportTraces]:
     engine = importer or RecordingImportTraces()
-    base = build_container()
-    container = Container(
-        get_system_status=base.get_system_status,
-        propose_mapping=base.propose_mapping,
-        get_kpi_summary=base.get_kpi_summary,
-        get_tool_breakdown=base.get_tool_breakdown,
-        get_activity_series=base.get_activity_series,
-        get_session_detail=base.get_session_detail,
-        get_filter_options=base.get_filter_options,
-        list_sessions=base.list_sessions,
+    imports = InMemoryImportRead(records or [], rejections)
+
+    # On part du conteneur de doublures commun et on ne remplace que ce que ces tests
+    # exercent : ajouter un cas d'utilisation ailleurs ne casse plus ce fichier.
+    container = replace(
+        build_container(),
         import_traces=engine,
         preview_import_file=PreviewImportFile(reader or FakeFileReader()),
-        list_imports=ListImports(FakeImportRead(records)),
+        list_imports=ListImports(imports),
+        get_import_detail=GetImportDetail(imports),
     )
     return TestClient(create_app(container=container)), engine
 
@@ -119,6 +111,47 @@ class TestHistorique:
         client, _ = build()
 
         assert client.get("/api/v1/imports").json() == {"imports": []}
+
+
+class TestDetail:
+    def test_expose_les_enregistrements_refuses_avec_leur_raison(self) -> None:
+        """Un bilan qui annonce des rejets sans dire lesquels ne permet pas de corriger le
+        fichier."""
+        record = an_import_record()
+        client, _ = build(
+            records=[record],
+            rejections={
+                record.import_id: (
+                    RejectionRecord(
+                        line_number=7,
+                        reason="session_id : Sans identifiant de session, l'enregistrement "
+                        "ne peut être rattaché.",
+                        raw_preview='{"who": "claude"}',
+                    ),
+                )
+            },
+        )
+
+        payload = client.get(f"/api/v1/imports/{record.import_id}").json()
+
+        assert payload["rejected_count"] == 1
+        assert payload["rejections"][0]["line_number"] == 7
+        assert "session_id" in payload["rejections"][0]["reason"]
+        assert payload["rejections"][0]["raw_preview"] == '{"who": "claude"}'
+
+    def test_un_import_sans_rejet_rend_une_liste_vide(self) -> None:
+        client, _ = build(records=[an_import_record()])
+
+        payload = client.get("/api/v1/imports/11111111-1111-1111-1111-111111111111").json()
+
+        assert payload["rejections"] == []
+
+    def test_un_identifiant_inconnu_donne_404(self) -> None:
+        client, _ = build(records=[an_import_record()])
+
+        response = client.get("/api/v1/imports/00000000-0000-0000-0000-000000000000")
+
+        assert response.status_code == 404
 
 
 class TestApercu:

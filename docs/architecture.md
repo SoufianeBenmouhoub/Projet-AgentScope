@@ -59,40 +59,56 @@ remplaçables sans toucher aux règles métier.
 flowchart LR
     subgraph ports["application/ports"]
         trace["TraceReadPort"]
+        write["TraceWritePort"]
         health["DatabaseHealthPort"]
-        llm["Port IA — lot 4"]
-        files["Port fichiers — lot 3"]
+        llm["MappingProposalPort"]
+        store["MappingStorePort"]
+        files["FileReadPort"]
+        norm["RecordNormalizerPort"]
     end
 
     subgraph impl["infrastructure"]
-        sqlTrace["SqlAlchemyTraceRead<br/>lot 2, à venir"]
-        emptyTrace["EmptyTraceRead<br/>implémentation d'attente"]
+        sqlTrace["SqlAlchemyTraceRead"]
+        sqlWrite["SQLAlchemyTraceWriter"]
+        sqlStore["SqlAlchemyMappingStore"]
         sqlHealth["SqlAlchemyDatabaseHealth"]
         anthropic["Adaptateur Anthropic"]
         ollama["Adaptateur Ollama"]
         fake["Adaptateur factice<br/>tests"]
         duck["Lecture DuckDB<br/>JSONL · CSV · Parquet"]
+        normalizer["RecordNormalizer<br/>piloté par le mapping"]
     end
 
     sqlTrace -.-> trace
-    emptyTrace -.-> trace
+    sqlWrite -.-> write
+    sqlStore -.-> store
     sqlHealth -.-> health
     anthropic -.-> llm
     ollama -.-> llm
     fake -.-> llm
     duck -.-> files
+    normalizer -.-> norm
 ```
 
-| Port | Implémentations | Sélection | Lot |
-|---|---|---|---|
-| `DatabaseHealthPort` | `SqlAlchemyDatabaseHealth` | câblage | 1 |
-| `TraceReadPort` | `EmptyTraceRead` (attente), `SqlAlchemyTraceRead` (à venir) | câblage | 2 et 5 |
-| Port IA | Anthropic, Ollama, factice | **`AI_PROVIDER` dans `.env`** | 4 |
-| Port fichiers | DuckDB | câblage | 3 |
+| Port | Implémentations | Sélection |
+|---|---|---|
+| `DatabaseHealthPort` | `SqlAlchemyDatabaseHealth` | câblage |
+| `TraceReadPort` | `SqlAlchemyTraceRead` | câblage |
+| `TraceWritePort` | `SQLAlchemyTraceWriter` | câblage |
+| `MappingStorePort` | `SqlAlchemyMappingStore` | câblage |
+| `FileReadPort` | `DuckDBFileReader` | câblage |
+| `RecordNormalizerPort` | `RecordNormalizer` | câblage |
+| `MappingProposalPort` | Anthropic, Ollama, factice | **`AI_PROVIDER` dans `.env`** |
 
-Le port IA se choisit **par configuration**, sans modifier le code : ni le moteur d'import
-ni les règles métier ne changent quand on change de fournisseur ou de modèle. Aucun
-identifiant de modèle n'est écrit en dur.
+Le port IA est le seul à se choisir **par configuration** plutôt qu'au câblage, parce que
+c'est le seul dont on change en fonctionnement : ni le moteur d'import ni les règles métier
+ne bougent quand on passe d'un modèle local à un modèle distant. Aucun identifiant de modèle
+n'est écrit en dur.
+
+`RecordNormalizerPort` a une propriété qui vaut d'être dite : **le même normaliseur sert à
+l'import et à l'essai à blanc.** Une imitation dédiée à l'aperçu finirait par diverger, et
+l'aperçu promettrait un résultat que l'import ne donne pas — exactement ce qu'un aperçu est
+censé éviter.
 
 ## 3. Le parcours principal
 
@@ -102,6 +118,8 @@ flowchart LR
     duck["Lecture et profilage<br/>DuckDB"]
     agent["Agent IA<br/>propose un mapping"]
     user(["Utilisateur<br/>relit, corrige, valide"])
+    dry["Essai à blanc<br/>même normaliseur, rien d'écrit"]
+    store[("Mappings<br/>enregistrés")]
     engine["Moteur d'import<br/>transformations contrôlées"]
     db[("PostgreSQL<br/>modèle normalisé")]
     metrics["Indicateurs<br/>règles du domaine"]
@@ -110,32 +128,45 @@ flowchart LR
     file --> duck
     duck -->|échantillon et profil| agent
     agent -->|mapping proposé| user
+    user -->|mapping corrigé| dry
+    dry -->|ce que ça donnerait| user
+    user -->|mapping validé| store
+    store -->|rejoué sur le fichier suivant| user
     user -->|mapping validé| engine
     duck --> engine
     engine --> db
+    engine -->|refus, avec leur raison| db
     db --> metrics
     metrics --> dash
 ```
 
-Deux propriétés de ce parcours sont des exigences, pas des choix d'implémentation :
+Trois propriétés de ce parcours sont des exigences, pas des choix d'implémentation :
 
 - **L'IA propose, elle n'écrit pas.** Elle ne touche jamais la base, et aucun code produit
   par un modèle n'est exécuté. Le moteur d'import applique des transformations contrôlées à
-  partir d'un mapping validé par l'application.
+  partir d'un mapping validé par l'utilisateur.
+- **L'utilisateur voit avant de décider.** L'essai à blanc fait tourner le vrai normaliseur
+  sur un échantillon et montre les valeurs réellement lues. Sans cette boucle, la seule façon
+  de vérifier un mapping serait de lancer l'import et de nettoyer la base ensuite.
 - **Les statistiques sont calculées par le programme**, jamais estimées par un modèle.
 
 ## 4. Ce qui existe et ce qui reste à construire
 
-| Composant | État | Lot |
-|---|---|---|
-| Structure en couches, CI, garde-fou d'architecture | **livré** | 1 |
-| Indicateurs, règles d'agrégation, `TraceReadPort` | **livré** | 5 |
-| Répartition des outils, série d'activité, détail de session | **livré** | 5 |
-| Routes API du dashboard | en cours | 5 |
-| Modèle relationnel, migrations, moteur d'import | en cours | 2 |
-| Connecteur TraceLab, bilan d'import | en cours | 3 |
-| Agent IA et ses adaptateurs | en cours | 4 |
-| Dashboard React, écrans d'import et de mapping | à venir | 5 et 6 |
+| Composant | État |
+|---|---|
+| Structure en couches, CI, garde-fou d'architecture | **livré** |
+| Modèle relationnel, migrations, moteur d'import, déduplication | **livré** |
+| Normalisation pilotée par un mapping déclaratif, groupement en sessions | **livré** |
+| Agent IA : port, deux fournisseurs réels, adaptateur factice | **livré** |
+| Parcours de mapping complet : proposer, corriger, essayer, enregistrer, importer | **livré** |
+| Conservation du détail des rejets d'import | **livré** |
+| Indicateurs, règles d'agrégation, routes du dashboard | **livré** |
+| Dashboard React : indicateurs, graphiques, filtres, qualité, sessions | **livré** |
+| Écrans d'import et de mapping | **livré** |
+
+Les limites connues de cette version sont listées dans
+[`CHANGELOG.md`](../CHANGELOG.md#limites-connues) — elles portent sur ce que le moteur ne
+sait pas encore faire, pas sur des morceaux manquants.
 
 ## 5. Deux règles transverses qui contraignent tous les composants
 
@@ -157,6 +188,7 @@ backend/
   src/agentscope/
     domain/            entités et règles — aucune dépendance
       metrics/         définitions d'indicateurs, agrégation, comparabilité
+      mapping/         contrat des champs visés, syntaxe des chemins
       trace/           sessions, appels aux modèles, appels d'outils
     application/       cas d'utilisation et ports — aucune dépendance
       ports/           interfaces attendues de l'infrastructure
@@ -165,16 +197,25 @@ backend/
       config/          configuration lue depuis l'environnement
       persistence/     PostgreSQL
       sources/         lecture de fichiers (DuckDB)
-      llm/             adaptateurs des fournisseurs d'IA
+      normalization/   application d'un mapping à un enregistrement
+      llm/             adaptateurs des fournisseurs d'IA + la question partagée
     interfaces/        API HTTP
     composition.py     le seul endroit qui choisit les implémentations
     main.py            point d'entrée
   alembic/             migrations
   tests/
     architecture/      vérification du sens des dépendances
+    fakes/             doublures partagées des ports
 frontend/
   src/features/        un dossier par domaine fonctionnel
-  src/shared/          client HTTP, types d'API
+    dashboard/         indicateurs, graphiques, filtres, qualité, sessions
+    import/            téléversement, aperçu, mise au point du mapping, historique
+  src/shared/          client HTTP, types d'API dérivés de l'OpenAPI
 docs/
   adr/                 décisions d'architecture
 ```
+
+Le domaine porte aussi `mapping/` : le contrat des champs qu'un mapping peut renseigner, et
+la syntaxe des chemins. Le déclarer là — plutôt que dans le routeur ou le normaliseur —
+évite qu'il diverge selon l'endroit d'où on le regarde. L'API l'expose, l'interface le lit,
+l'agent IA le vise, le moteur l'applique : une seule source.

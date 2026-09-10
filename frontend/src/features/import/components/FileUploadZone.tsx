@@ -1,75 +1,72 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
-import { previewImportFile, uploadImportFile } from "../../../shared/api/imports";
 import { ApiError } from "../../../shared/api/client";
-import type { ImportPreviewResponse, ImportRecordResponse } from "../../../shared/api/types";
+import { previewImportFile } from "../../../shared/api/imports";
+import type { ImportPreviewResponse } from "../../../shared/api/types";
 import { isAcceptedImportFile } from "../utils/importHelpers";
 
 interface FileUploadZoneProps {
   sourceName: string;
-  onImportComplete: (result: ImportRecordResponse) => void;
+  file: File | null;
+  onFileChange: (file: File | null) => void;
   onPreviewReady: (preview: ImportPreviewResponse) => void;
 }
 
-export function FileUploadZone({ sourceName, onImportComplete, onPreviewReady }: FileUploadZoneProps) {
+/**
+ * Le choix du fichier et son aperçu. **Rien n'est importé ici.**
+ *
+ * L'import est déclenché plus bas, après la mise au point du mapping : mettre le bouton
+ * « Importer » à côté du bouton « Prévisualiser » inviterait à sauter l'étape qui donne
+ * tout son sens à l'aperçu.
+ */
+export function FileUploadZone({
+  sourceName,
+  file,
+  onFileChange,
+  onPreviewReady,
+}: FileUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const previewMutation = useMutation({
-    mutationFn: (file: File) => previewImportFile(file, sourceName),
+    mutationFn: (chosen: File) => previewImportFile(chosen, sourceName),
     onSuccess: onPreviewReady,
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) => uploadImportFile(file, sourceName),
-    onSuccess: (result) => {
-      setSelectedFile(null);
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
-      onImportComplete(result);
-    },
-  });
-
-  const handleFile = (file: File | undefined) => {
+  const handleFile = (chosen: File | undefined) => {
     setValidationError(null);
     previewMutation.reset();
-    uploadMutation.reset();
 
-    if (!file) {
-      setSelectedFile(null);
+    if (!chosen) {
+      onFileChange(null);
       return;
     }
 
-    if (!isAcceptedImportFile(file)) {
-      setSelectedFile(null);
+    if (!isAcceptedImportFile(chosen)) {
+      onFileChange(null);
       setValidationError("Formats acceptés : JSONL, CSV ou Parquet.");
       return;
     }
 
-    setSelectedFile(file);
+    onFileChange(chosen);
   };
 
   const apiMessage = (error: unknown): string => {
     if (error instanceof ApiError) {
-      if (error.status === 404) {
-        return "L'API d'import n'est pas encore disponible côté serveur.";
-      }
-      return error.message;
+      return error.status === 404
+        ? "L'API d'import n'est pas encore disponible côté serveur."
+        : error.message;
     }
     return "Une erreur inattendue s'est produite.";
   };
-
-  const isBusy = previewMutation.isPending || uploadMutation.isPending;
 
   return (
     <section className="import-upload" aria-label="Téléversement de fichier">
       <h2 className="section-title">Nouvel import</h2>
       <p className="import-upload__hint">
-        Sélectionnez un fichier JSONL, CSV ou Parquet. Vous pouvez prévisualiser sa structure
-        avant de lancer l'import définitif.
+        Sélectionnez un fichier JSONL, CSV ou Parquet. L'aperçu montre ses champs et
+        quelques lignes, sans rien écrire en base.
       </p>
 
       <div
@@ -89,10 +86,10 @@ export function FileUploadZone({ sourceName, onImportComplete, onPreviewReady }:
           onChange={(event) => handleFile(event.target.files?.[0])}
         />
         <label htmlFor="import-file" className="import-dropzone__label">
-          {selectedFile ? (
+          {file ? (
             <>
-              <strong>{selectedFile.name}</strong>
-              <span>{Math.round(selectedFile.size / 1024)} Ko</span>
+              <strong>{file.name}</strong>
+              <span>{Math.round(file.size / 1024)} Ko</span>
             </>
           ) : (
             <>Glissez un fichier ici ou cliquez pour parcourir</>
@@ -112,28 +109,14 @@ export function FileUploadZone({ sourceName, onImportComplete, onPreviewReady }:
         </p>
       )}
 
-      {uploadMutation.isError && (
-        <p className="status-message status-message--error" role="alert">
-          {apiMessage(uploadMutation.error)}
-        </p>
-      )}
-
       <div className="import-upload__actions">
         <button
           type="button"
-          className="btn btn--ghost"
-          disabled={!selectedFile || isBusy}
-          onClick={() => selectedFile && previewMutation.mutate(selectedFile)}
+          className="btn btn--primary"
+          disabled={!file || previewMutation.isPending}
+          onClick={() => file && previewMutation.mutate(file)}
         >
           {previewMutation.isPending ? "Analyse…" : "Prévisualiser"}
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={!selectedFile || isBusy}
-          onClick={() => selectedFile && uploadMutation.mutate(selectedFile)}
-        >
-          {uploadMutation.isPending ? "Import en cours…" : "Importer"}
         </button>
       </div>
     </section>

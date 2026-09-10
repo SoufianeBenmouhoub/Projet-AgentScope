@@ -49,7 +49,17 @@ class DuckDBFileReader(FileReadPort):
             return f"SELECT * FROM read_json_auto('{escaped_path}')"
 
         if resolved_format == "csv":
-            return f"SELECT * FROM read_csv_auto('{escaped_path}')"
+            # Toutes les colonnes en texte, délibérément. Un CSV n'a pas de types : ceux que
+            # DuckDB devine sont une interprétation, et elle coûte deux fois. Une colonne
+            # d'horodatages uniformément marqués « Z » devient un TIMESTAMP WITH TIME ZONE
+            # dont la conversion vers Python échoue faute d'une dépendance optionnelle — un
+            # fichier parfaitement valide, refusé. Et une colonne de nombres à zéro initial
+            # perdrait ses zéros.
+            #
+            # Le normaliseur relit de toute façon chaque valeur selon le champ qu'elle
+            # alimente (`_whole`, `_moment`) : lui passer le texte d'origine, c'est lui
+            # laisser cette décision au lieu de la subir.
+            return f"SELECT * FROM read_csv_auto('{escaped_path}', all_varchar=true)"
 
         if resolved_format == "parquet":
             return f"SELECT * FROM read_parquet('{escaped_path}')"
