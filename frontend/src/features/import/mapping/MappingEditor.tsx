@@ -19,6 +19,7 @@ import {
   applyProposal,
   emptyDraft,
   fromSaved,
+  groupByScope,
   missingRequired,
   notesByField,
   toMapping,
@@ -32,11 +33,12 @@ interface Props {
   onReady: (mapping: FieldMappingValues | null) => void;
 }
 
+/** Ce que chaque groupe de champs décrit. L'ordre, lui, vient de `groupByScope`. */
 const SCOPE_LABELS: Record<string, string> = {
   session: "Session",
   model_call: "Appel au modèle",
-  tool_call: "Appel d'outil",
-  collection: "Tableau à parcourir",
+  collection: "Le tableau des appels d'outils",
+  tool_call: "Appel d'outil — lus dans chaque élément du tableau ci-dessus",
 };
 
 function message(error: unknown): string {
@@ -70,6 +72,7 @@ export function MappingEditor({ preview, onReady }: Props) {
   const savedQuery = useQuery({ queryKey: ["mappings"], queryFn: fetchSavedMappings, retry: false });
 
   const fields = useMemo(() => contractQuery.data?.fields ?? [], [contractQuery.data]);
+  const byScope = useMemo(() => groupByScope(fields), [fields]);
 
   // Le brouillon ne peut exister avant de savoir quels champs le composent. On l'initialise
   // dès que le contrat arrive, et une seule fois : réinitialiser à chaque rendu effacerait
@@ -234,40 +237,51 @@ export function MappingEditor({ preview, onReady }: Props) {
             <tr>
               <th scope="col">Champ du modèle</th>
               <th scope="col">Champ du fichier</th>
-              <th scope="col">Portée</th>
               <th scope="col">L'agent dit</th>
             </tr>
           </thead>
-          <tbody>
-            {fields.map((field) => (
-              <tr key={field.key}>
-                <th scope="row">
-                  <span className="mapping__key">{field.key}</span>
-                  {field.required && <span className="mapping__required"> (obligatoire)</span>}
-                  <span className="mapping__description">{field.description}</span>
+
+          {byScope.map(([scope, group]) => (
+            <tbody key={scope}>
+              <tr className="mapping__group">
+                <th scope="colgroup" colSpan={3}>
+                  {SCOPE_LABELS[scope] ?? scope}
+                  <span className="mapping__group-count">
+                    {" "}
+                    — {group.length} champ{group.length > 1 ? "s" : ""}
+                  </span>
                 </th>
-                <td>
-                  <input
-                    className="field__input"
-                    type="text"
-                    list="mapping-columns"
-                    placeholder="laisser vide si absent"
-                    aria-label={`Champ du fichier pour ${field.key}`}
-                    value={draft[field.key] ?? ""}
-                    onChange={(event) => setField(field.key, event.target.value)}
-                  />
-                </td>
-                <td>{SCOPE_LABELS[field.scope] ?? field.scope}</td>
-                <td className="mapping__note">
-                  {notes[field.key]?.confidence !== undefined &&
-                    notes[field.key]?.confidence !== null && (
-                      <strong>{Math.round((notes[field.key].confidence ?? 0) * 100)} % </strong>
-                    )}
-                  {notes[field.key]?.note ?? ""}
-                </td>
               </tr>
-            ))}
-          </tbody>
+
+              {group.map((field) => (
+                <tr key={field.key}>
+                  <th scope="row">
+                    <span className="mapping__key">{field.key}</span>
+                    {field.required && <span className="mapping__required"> (obligatoire)</span>}
+                    <span className="mapping__description">{field.description}</span>
+                  </th>
+                  <td>
+                    <input
+                      className="field__input"
+                      type="text"
+                      list="mapping-columns"
+                      placeholder="laisser vide si absent"
+                      aria-label={`Champ du fichier pour ${field.key}`}
+                      value={draft[field.key] ?? ""}
+                      onChange={(event) => setField(field.key, event.target.value)}
+                    />
+                  </td>
+                  <td className="mapping__note">
+                    {notes[field.key]?.confidence !== undefined &&
+                      notes[field.key]?.confidence !== null && (
+                        <strong>{Math.round((notes[field.key].confidence ?? 0) * 100)} % </strong>
+                      )}
+                    {notes[field.key]?.note ?? ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          ))}
         </table>
       </div>
 

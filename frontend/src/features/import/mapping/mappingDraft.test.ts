@@ -5,6 +5,7 @@ import {
   applyProposal,
   emptyDraft,
   fromSaved,
+  groupByScope,
   missingRequired,
   notesByField,
   toMapping,
@@ -30,6 +31,58 @@ describe("brouillon de mapping", () => {
       tools: "",
       tool_name: "",
     });
+  });
+});
+
+describe("regroupement par portée", () => {
+  it("range les champs dans l'ordre de remplissage du formulaire", () => {
+    const fields: TargetField[] = [
+      { key: "tool_name", scope: "tool_call", description: "", required: false },
+      { key: "session_id", scope: "session", description: "", required: true },
+      { key: "tools", scope: "collection", description: "", required: false },
+      { key: "model", scope: "model_call", description: "", required: false },
+    ];
+
+    expect(groupByScope(fields).map(([scope]) => scope)).toEqual([
+      "session",
+      "model_call",
+      "collection",
+      "tool_call",
+    ]);
+  });
+
+  it("conserve l'ordre du contrat à l'intérieur d'un groupe", () => {
+    const fields: TargetField[] = [
+      { key: "tool_name", scope: "tool_call", description: "", required: false },
+      { key: "tool_error", scope: "tool_call", description: "", required: false },
+      { key: "tool_call_id", scope: "tool_call", description: "", required: false },
+    ];
+
+    const [[, group]] = groupByScope(fields);
+
+    expect(group.map((field) => field.key)).toEqual([
+      "tool_name",
+      "tool_error",
+      "tool_call_id",
+    ]);
+  });
+
+  it("ne perd pas un champ dont la portée est inconnue", () => {
+    // Perdre un champ parce que le serveur a introduit une portée nouvelle serait pire
+    // que de l'afficher au mauvais endroit.
+    const fields: TargetField[] = [
+      { key: "nouveau", scope: "portee_inedite", description: "", required: false },
+      { key: "session_id", scope: "session", description: "", required: true },
+    ];
+
+    const grouped = groupByScope(fields);
+
+    expect(grouped.map(([scope]) => scope)).toEqual(["session", "portee_inedite"]);
+    expect(grouped.flatMap(([, group]) => group)).toHaveLength(2);
+  });
+
+  it("un contrat vide ne produit aucun groupe", () => {
+    expect(groupByScope([])).toEqual([]);
   });
 });
 

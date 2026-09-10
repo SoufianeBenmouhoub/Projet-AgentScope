@@ -11,6 +11,43 @@ import type { FieldMappingValues, MappingProposal, TargetField } from "../../../
 /** Un brouillon associe chaque champ du contrat à un chemin, éventuellement vide. */
 export type MappingDraft = Record<string, string>;
 
+/**
+ * Les portées, dans l'ordre où on remplit le formulaire : ce qui décrit la session, puis
+ * l'appel au modèle, puis le tableau des outils, puis ce qu'on lit dedans.
+ */
+const SCOPE_ORDER = ["session", "model_call", "collection", "tool_call"];
+
+/**
+ * Répartit les champs par portée, en conservant l'ordre du contrat à l'intérieur de chaque
+ * groupe.
+ *
+ * Dix-sept champs à la suite forment une liste sans relief, où les six derniers — ceux des
+ * appels d'outils — se retrouvent en bas sans que rien ne dise qu'ils forment un bloc.
+ *
+ * Une portée inconnue du serveur n'est pas jetée : elle est rendue après les autres, dans
+ * son propre groupe. Perdre un champ parce que sa portée est nouvelle serait pire que de
+ * l'afficher au mauvais endroit.
+ */
+export function groupByScope(fields: TargetField[]): [string, TargetField[]][] {
+  const groups = new Map<string, TargetField[]>();
+
+  for (const field of fields) {
+    const group = groups.get(field.scope);
+    if (group) {
+      group.push(field);
+    } else {
+      groups.set(field.scope, [field]);
+    }
+  }
+
+  const rank = (scope: string) => {
+    const index = SCOPE_ORDER.indexOf(scope);
+    return index === -1 ? SCOPE_ORDER.length : index;
+  };
+
+  return [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b));
+}
+
 /** Un brouillon vide : tous les champs du contrat présents, aucun renseigné. */
 export function emptyDraft(fields: TargetField[]): MappingDraft {
   return Object.fromEntries(fields.map((field) => [field.key, ""]));

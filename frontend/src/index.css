@@ -674,6 +674,29 @@ dl {
   max-width: 22rem;
 }
 
+/* Le titre d'un groupe de champs. Il reste visible pendant qu'on fait défiler la table :
+   sans ça, arrivé au huitième champ, plus rien ne dit à quoi il se rapporte. */
+.mapping__group th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  max-width: none;
+  padding-top: 0.9rem;
+  background: var(--color-bg);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.mapping__group-count {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-muted);
+}
+
 .mapping__key {
   font-weight: 600;
   font-family: ui-monospace, "SFMono-Regular", "Consolas", monospace;
