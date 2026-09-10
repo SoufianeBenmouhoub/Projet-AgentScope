@@ -43,53 +43,17 @@ export type SessionDetail = Schemas["SessionDetailResponse"];
 export type SessionSummary = Schemas["SessionSummaryResponse"];
 export type SessionList = Schemas["SessionListResponse"];
 
-/* -------------------------------------------------------------------------------------
- * Import — types provisoires
- *
- * Ceux-ci sont écrits à la main, contrairement à tous les précédents. Ce n'est pas un
- * oubli : **l'API d'import n'existe pas encore côté serveur**, il n'y a donc rien à
- * générer. Ils décrivent le contrat que l'écran d'import attend du lot 3.
- *
- * Dès que les routes `/api/v1/imports` existeront, ce bloc disparaît au profit de
- * `npm run types:api`. Tant qu'il est là, il signale une API attendue mais absente — et
- * l'écran d'import ne peut pas fonctionner de bout en bout.
- * ----------------------------------------------------------------------------------- */
+/* Import — dérivés du schéma OpenAPI comme le reste, depuis que les routes existent. */
 
+export type ImportPreviewResponse = Schemas["ImportPreviewResponse"];
+export type ImportRecordResponse = Schemas["ImportRecordResponse"];
+export type ImportListResponse = Schemas["ImportListResponse"];
+export type ImportDetailResponse = Schemas["ImportDetailResponse"];
+export type ImportRejectionResponse = Schemas["ImportRejectionResponse"];
+
+/**
+ * Les statuts et formats restent des unions écrites à la main : le serveur les expose en
+ * texte libre, et les figer ici documente ce que l'interface sait afficher.
+ */
 export type ImportStatus = "pending" | "running" | "completed" | "failed" | "duplicate";
-
 export type ImportFormat = "jsonl" | "csv" | "parquet";
-
-export interface ImportRejectionResponse {
-  line_number: number;
-  reason: string;
-  raw_preview: string | null;
-}
-
-export interface ImportRecordResponse {
-  id: string;
-  source_name: string;
-  filename: string;
-  format: ImportFormat;
-  imported_at: string;
-  status: ImportStatus;
-  records_imported: number;
-  duplicates_count: number;
-  rejected_count: number;
-  missing_data_count: number;
-}
-
-export interface ImportListResponse {
-  imports: ImportRecordResponse[];
-}
-
-export interface ImportDetailResponse extends ImportRecordResponse {
-  rejections: ImportRejectionResponse[];
-}
-
-export interface ImportPreviewResponse {
-  filename: string;
-  format: ImportFormat;
-  row_count_sample: number;
-  columns: string[];
-  sample_rows: Record<string, unknown>[];
-}

@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from agentscope.application.container import Container
-from agentscope.interfaces.api.routers import mapping, metrics, sessions, system
+from agentscope.interfaces.api.routers import imports, mapping, metrics, sessions, system
 
 DESCRIPTION = (
     "Exploration normalisée de traces d'agents de développement IA : importer, vérifier, "
@@ -39,6 +39,7 @@ def create_app(
         )
 
     app.include_router(system.router)
+    app.include_router(imports.router)
     app.include_router(metrics.router)
     app.include_router(sessions.router)
     app.include_router(mapping.router)

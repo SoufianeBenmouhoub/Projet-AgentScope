@@ -18,11 +18,15 @@ from agentscope.application.container import Container
 from agentscope.application.ports.trace_read import TraceFilter
 from agentscope.application.use_cases.get_activity_series import GetActivitySeries
 from agentscope.application.use_cases.get_filter_options import GetFilterOptions
+from agentscope.application.use_cases.get_import_detail import GetImportDetail
 from agentscope.application.use_cases.get_kpi_summary import GetKpiSummary
 from agentscope.application.use_cases.get_session_detail import GetSessionDetail
 from agentscope.application.use_cases.get_system_status import GetSystemStatus
 from agentscope.application.use_cases.get_tool_breakdown import GetToolBreakdown
+from agentscope.application.use_cases.import_traces import ImportTraces
+from agentscope.application.use_cases.list_imports import ListImports
 from agentscope.application.use_cases.list_sessions import ListSessions
+from agentscope.application.use_cases.preview_import_file import PreviewImportFile
 from agentscope.application.use_cases.propose_mapping import ProposeMapping
 
 
@@ -62,6 +66,41 @@ def provide_get_filter_options(request: Request) -> GetFilterOptions:
 
 def provide_list_sessions(request: Request) -> ListSessions:
     return provide_container(request).list_sessions
+
+
+def _required(use_case: object | None, name: str) -> object:
+    """Les cas d'utilisation de l'import sont optionnels dans le conteneur.
+
+    Ils le sont pour que les tests du tableau de bord n'aient pas à câbler un lecteur de
+    fichiers. En fonctionnement réel, `composition.py` les fournit toujours — si l'un
+    manque ici, c'est une erreur de câblage, pas une situation à gérer silencieusement.
+    """
+    if use_case is None:
+        raise HTTPException(
+            status_code=501,
+            detail=f"Le cas d'utilisation « {name} » n'est pas câblé dans cette application.",
+        )
+    return use_case
+
+
+def provide_import_traces(request: Request) -> ImportTraces:
+    container = provide_container(request)
+    return _required(container.import_traces, "import_traces")  # type: ignore[return-value]
+
+
+def provide_preview_import_file(request: Request) -> PreviewImportFile:
+    container = provide_container(request)
+    return _required(container.preview_import_file, "preview_import_file")  # type: ignore[return-value]
+
+
+def provide_list_imports(request: Request) -> ListImports:
+    container = provide_container(request)
+    return _required(container.list_imports, "list_imports")  # type: ignore[return-value]
+
+
+def provide_get_import_detail(request: Request) -> GetImportDetail:
+    container = provide_container(request)
+    return _required(container.get_import_detail, "get_import_detail")  # type: ignore[return-value]
 
 
 def provide_propose_mapping(request: Request) -> ProposeMapping:
