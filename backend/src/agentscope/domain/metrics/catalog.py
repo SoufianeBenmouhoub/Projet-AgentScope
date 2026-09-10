@@ -88,9 +88,9 @@ INPUT_TOKENS_TOTAL = IndicatorDefinition(
     label="Tokens en entrée",
     unit="tokens",
     computation=(
-        "Somme des tokens d'entrée déclarés par chaque appel au modèle. Ne couvre que "
-        "l'entrée : les traces exploitées ne publient pas de compteur de tokens en sortie, "
-        "et un total « entrée + sortie » serait donc inventé."
+        "Somme des tokens d'entrée déclarés par chaque appel au modèle. L'entrée et la "
+        "sortie restent séparées : les additionner masquerait le fait qu'un token d'entrée "
+        "et un token de sortie n'ont ni le même coût ni la même signification."
     ),
     scope="Appels au modèle des sources retenues par les filtres actifs.",
     missing_values=(

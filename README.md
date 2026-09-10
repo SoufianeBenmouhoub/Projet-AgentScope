@@ -136,6 +136,14 @@ par un test** qui tourne dans la CI (`backend/tests/architecture/`).
 - Les conventions de travail : [CONTRIBUTING.md](CONTRIBUTING.md)
 - Les décisions d'architecture : [docs/adr/](docs/adr/)
 
+## Données
+
+- **Provenance, versions et méthode de sélection des extraits :** [docs/data-sources.md](docs/data-sources.md)
+- **Trois observations chiffrées tirées des données :** [docs/observations.md](docs/observations.md)
+- Le modèle relationnel : [docs/data-model.md](docs/data-model.md)
+
+Aucun jeu de données n'est versionné dans ce dépôt.
+
 ## Structure du dépôt
 
 ```
