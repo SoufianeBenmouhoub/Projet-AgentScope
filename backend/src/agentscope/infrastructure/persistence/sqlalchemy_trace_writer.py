@@ -87,6 +87,12 @@ class SQLAlchemyTraceWriter(TraceWritePort):
             )
         )
 
+        # Envoi immédiat en base. Les tables ne déclarent pas de `relationship` : SQLAlchemy
+        # ne connaît donc pas l'ordre d'insertion imposé par les clés étrangères, et peut
+        # écrire un appel avant la session qu'il référence. Le coût reste faible — une
+        # session couvre en général des dizaines d'appels, qui eux restent groupés.
+        self._db.flush()
+
     def save_model_call(self, model_call: ModelCall) -> None:
         self._db.add(
             ModelCallModel(
@@ -113,6 +119,7 @@ class SQLAlchemyTraceWriter(TraceWritePort):
                 started_at=tool_call.started_at,
                 ended_at=tool_call.ended_at,
                 status=tool_call.status,
+                is_error=tool_call.is_error,
                 error=tool_call.error,
             )
         )

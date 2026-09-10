@@ -23,7 +23,9 @@ from agentscope.application.ports.trace_read import TraceFilter
 from agentscope.infrastructure.config.settings import get_settings
 from agentscope.infrastructure.persistence.models import (
     Base,
+    Import,
     ModelCall,
+    RawRecord,
     Session,
     Source,
     ToolCall,
@@ -56,7 +58,12 @@ def db(engine):
 
 
 def _wipe(session: DbSession) -> None:
-    for table in (ToolCall, ModelCall, Session, Source):
+    """Vide les tables, des feuilles vers les racines.
+
+    L'ordre suit les clés étrangères : supprimer une source avant les imports qui la
+    référencent est refusé par la base.
+    """
+    for table in (ToolCall, ModelCall, Session, RawRecord, Import, Source):
         session.execute(delete(table))
     session.commit()
 

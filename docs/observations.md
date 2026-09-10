@@ -10,10 +10,15 @@ construction est décrite dans [`data-sources.md`](data-sources.md).
 python scripts/observations.py chemin/vers/tracelab-extrait.jsonl
 ```
 
-> Ce script lit l'extrait brut plutôt que la base. À ce jour, la normalisation ne produit
-> que des sessions : les appels d'outils, sur lesquels portent les deux premières
-> observations, ne sont pas encore importés. Chaque observation indique l'écran et le filtre
-> qui la montreront dès que ce sera le cas.
+**Les trois sont également lisibles dans l'application**, après import de l'extrait. Le
+script lit le fichier brut, l'application lit sa base : les deux chemins donnent les mêmes
+chiffres, ce qui est la meilleure vérification qu'on puisse faire de la normalisation.
+
+```
+Import de l'extrait TraceLab
+  enregistrements lus : 15 913     sessions : 240
+  appels au modèle    : 15 913     appels d'outils : 15 969     anomalies : 0
+```
 
 ---
 
@@ -34,8 +39,19 @@ C'est pourquoi l'indicateur les exclut du dénominateur plutôt que de les assim
 succès.
 
 *Où la retrouver :* tableau de bord, indicateur « Taux d'erreur des appels d'outils », sans
-filtre. Le panneau de qualité des données indique en parallèle combien d'appels sont exclus
-du calcul.
+filtre — il affiche **4,87 % sur 15 864 des 15 969 appels du périmètre**. La vue tableau du
+graphique de répartition donne le détail par outil, et l'écart entre outils est net :
+
+| Outil | Appels | Taux d'erreur |
+|---|---:|---:|
+| `Bash` | 4 580 | 7,7 % |
+| `shell_command` | 2 187 | 6,3 % |
+| `exec_command` | 844 | 3,7 % |
+| `Edit` | 2 953 | 3,6 % |
+| `Read` | 2 904 | 1,2 % |
+| `TaskUpdate` | 828 | 0,0 % |
+
+Exécuter une commande échoue six fois plus souvent que lire un fichier.
 
 ---
 
@@ -77,10 +93,11 @@ C'est le cas concret qui justifie deux mécanismes du projet : cet indicateur es
 comme propre à une source et se signale dès qu'il agrège plusieurs agents, et le panneau de
 qualité affiche « non publié » plutôt qu'un zéro.
 
-*Où la retrouver :* graphique « Tokens par source », qui interroge l'API une fois par source
-et laisse un trou explicite là où la mesure n'existe pas — avec la phrase qui le dit sous le
-graphique. Le panneau de qualité des données donne la même information sous forme de
-complétude par source.
+*Où la retrouver :* filtrer par agent sur le tableau de bord donne directement le contraste —
+`claude` affiche **67 616 231 tokens, couverture 12 545/12 545** ; `codex` affiche
+**indisponible, couverture 0/3 368**. Le graphique « Tokens par source » laisse un trou
+explicite là où la mesure n'existe pas, avec la phrase qui le dit, et le panneau de qualité
+donne la même information sous forme de complétude.
 
 ---
 

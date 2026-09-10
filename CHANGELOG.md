@@ -27,6 +27,13 @@ explorer** existe de bout en bout, avec les limites listées plus bas.
   absente ne devient jamais un zéro, du schéma SQL jusqu'à l'écran.
 - Lecture de fichiers JSONL, CSV et Parquet via DuckDB.
 - **Un réimport du même fichier ne crée pas de doublon** — vérifié par un test.
+- **Normalisation pilotée par un mapping déclaratif**, capable de descendre dans des
+  structures imbriquées (`timing_events[0].timestamp`) et de parcourir un tableau d'appels
+  d'outils. Intégrer une source se fait par configuration, sans toucher au moteur.
+- **Les enregistrements sont regroupés en sessions** par identifiant, et les bornes d'une
+  session se déduisent du plus tôt au plus tard de ses invocations.
+- Vérifié sur des données réelles : **15 913 enregistrements TraceLab → 240 sessions,
+  15 913 appels au modèle, 15 969 appels d'outils, 0 anomalie.**
 
 **Agent IA**
 
@@ -68,9 +75,11 @@ explorer** existe de bout en bout, avec les limites listées plus bas.
 Elles sont listées sans détour : un import partiel correctement expliqué vaut mieux qu'un
 import qui paraît réussi et produit des chiffres faux.
 
-- **La normalisation ne produit que des sessions.** Les appels aux modèles et les appels
-  d'outils ne sont pas encore extraits des enregistrements bruts. En conséquence, quatre des
-  six indicateurs restent indisponibles après un import.
+- **Un mapping ne transforme pas les valeurs.** Il choisit un champ, il ne le convertit ni ne
+  le combine : une source dont les dates seraient en secondes Unix ne pourrait pas être
+  intégrée sans étendre le moteur.
+- **Un seul niveau de tableau est parcouru.** Les appels d'outils sont lus dans `tools[]`,
+  mais pas un tableau imbriqué dans un tableau.
 - **Le mapping proposé par l'agent n'est ni enregistré, ni modifiable dans l'interface.**
   L'agent sait analyser un fichier et proposer des correspondances, et l'import accepte un
   mapping explicite — mais le parcours qui relie les deux, avec correction et réutilisation

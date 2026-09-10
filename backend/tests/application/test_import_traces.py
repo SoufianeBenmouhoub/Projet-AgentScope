@@ -192,7 +192,10 @@ def test_import_traces_orchestre_lecture_normalisation_et_ecriture(tmp_path):
     )
 
     assert result.records_read == 2
-    assert result.sessions_written == 2
+    # Les deux enregistrements portent le même identifiant de session : ils appartiennent
+    # donc à la même session, et n'en écrivent qu'une. Sans ce regroupement, un extrait de
+    # 240 sessions réelles en produirait des milliers, chacune réduite à une invocation.
+    assert result.sessions_written == 1
     assert result.model_calls_written == 2
     assert result.tool_calls_written == 2
 
@@ -211,7 +214,7 @@ def test_import_traces_orchestre_lecture_normalisation_et_ecriture(tmp_path):
     assert normalizer.calls[0]["mapping"] == mapping
     assert normalizer.calls[0]["source"] == "test-source"
 
-    assert len(writer.sessions) == 2
+    assert len(writer.sessions) == 1
     assert len(writer.model_calls) == 2
     assert len(writer.tool_calls) == 2
 
