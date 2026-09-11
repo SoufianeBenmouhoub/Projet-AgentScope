@@ -108,15 +108,16 @@ cd backend && alembic upgrade head && pytest
 ## Configuration du modèle IA
 
 Le fournisseur, le modèle et son point d'accès se choisissent dans `backend/.env`, sans
-toucher au code. Trois configurations sont documentées dans `backend/.env.example` :
+toucher au code. Quatre configurations sont documentées dans `backend/.env.example` :
 
-| Configuration | `AI_PROVIDER` | `AI_MODEL` | `AI_BASE_URL` | Clé nécessaire |
-|---|---|---|---|---|
-| Ollama (local) | `ollama` | le modèle téléchargé | `http://localhost:11434/v1` | non |
-| Anthropic (distant) | `anthropic` | par ex. `claude-opus-5` | — | oui (`AI_API_KEY`) |
-| Doublure de test | `fake` | — | — | non |
+| Configuration | `AI_PROVIDER` | `AI_MODEL` | `AI_BASE_URL` | Clé nécessaire | Coût |
+|---|---|---|---|---|---|
+| Ollama (local) | `ollama` | le modèle téléchargé | `http://localhost:11434/v1` | non | gratuit |
+| Groq (distant) | `groq` | par ex. `openai/gpt-oss-120b` | — (défaut fourni) | oui (`AI_API_KEY`) | gratuit |
+| Anthropic (distant) | `anthropic` | par ex. `claude-opus-5` | — | oui (`AI_API_KEY`) | payant |
+| Doublure de test | `fake` | — | — | non | — |
 
-Les deux fournisseurs réels posent **la même question** et relisent la réponse **de la même
+Les fournisseurs réels posent **la même question** et relisent la réponse **de la même
 façon** (`infrastructure/llm/prompt.py`) : passer de l'un à l'autre change le modèle, et
 rien d'autre. C'est ce qui rend la comparaison honnête.
 
@@ -146,12 +147,12 @@ Le détail de l'agent et de son contrat est dans [docs/mapping-agent.md](docs/ma
 
 Le projet est un monolithe modulaire organisé en couches, dont les dépendances vont
 toujours vers l'intérieur :
-
 ```
 interfaces ──┐
              ├──> application ──> domain
 infrastructure ──┘
 ```
+
 
 Le cœur métier — `domain/` et `application/` — n'utilise que la bibliothèque standard : il
 ne connaît ni FastAPI, ni SQLAlchemy, ni aucun fournisseur d'IA. Cette règle est **vérifiée
@@ -170,8 +171,7 @@ par un test** qui tourne dans la CI (`backend/tests/architecture/`).
 
 Aucun jeu de données n'est versionné dans ce dépôt.
 
-## Structure du dépôt
-
+## Structure du dépôt:
 ```
 backend/
   src/agentscope/
@@ -193,10 +193,23 @@ docs/
 
 ## État du projet
 
-Le parcours principal existe de bout en bout, avec des limites assumées et documentées.
-Elles sont listées sans détour dans les [notes de version](CHANGELOG.md) — notamment le fait
-que la normalisation ne produit encore que des sessions, et que l'import n'est pas
-déclenchable depuis l'interface.
+Le parcours principal existe de bout en bout et a été vérifié en conditions réelles :
+import d'un fichier, proposition de mapping par l'agent IA (Ollama et Groq), correction,
+aperçu sur l'échantillon, enregistrement du mapping, puis import déclenché depuis
+l'interface. La normalisation produit sessions, appels au modèle et appels d'outils.
+
+Les limites connues sont listées sans détour dans les [notes de version](CHANGELOG.md).
+
+## Équipe
+
+| Nom | Lot / partie |
+|---|---|
+| Narimen Boumaout | Agent IA de mapping (Ollama, Groq) |
+| Soufiane Benmouhoub | Anthropic, persistance et parcours de mapping, intégration |
+| Melissa Berti | Adaptateur et import TraceLab |
+| Thanushan Thevendiran | Modèle de données, lecteurs de jeux de données génériques, import |
+| Mustapha Islam Ainouch | — |
+| Dihiya Ouchene | — |
 
 ## Contribuer
 
