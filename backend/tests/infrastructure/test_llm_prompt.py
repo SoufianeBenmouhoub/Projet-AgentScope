@@ -71,6 +71,22 @@ class TestReponse:
             "cache_creation_tokens : Cette source ne publie pas la mesure",
         )
 
+    def test_le_mot_null_en_texte_est_traite_comme_une_absence(self) -> None:
+        """Un modèle écrit parfois le mot "null" plutôt que la valeur JSON — le traiter
+        différemment laisserait passer une correspondance inventée sans jamais apparaître
+        dans les notes non résolues."""
+        raw = (
+            '{"mappings": [{"target_field": "cache_creation_tokens", "source_field": "NULL", '
+            '"confidence": 0.6, "note": "Absent mais on peut le supposer"}]}'
+        )
+
+        proposal = parse_proposal(raw)
+
+        assert proposal.mappings[0].source_field is None
+        assert proposal.unresolved_notes == (
+            "cache_creation_tokens : Absent mais on peut le supposer",
+        )
+
     def test_un_json_entoure_de_texte_reste_exploitable(self) -> None:
         """Un modèle à qui l'on demande « uniquement du JSON » ajoute souvent un bloc de
         code ou une phrase. Refuser la réponse pour cela seul gaspillerait une proposition

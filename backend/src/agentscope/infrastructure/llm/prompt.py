@@ -47,6 +47,18 @@ def build_prompt(sample: ImportSample) -> str:
     )
 
 
+def _normalized_source_field(value: object) -> object:
+    """Un modèle écrit parfois le mot "null" plutôt que la valeur JSON.
+
+    Les traiter différemment laisserait passer un nom de champ inventé sans jamais
+    apparaître dans les notes non résolues — exactement ce que cette normalisation
+    évite.
+    """
+    if isinstance(value, str) and value.strip().lower() in ("null", "none", ""):
+        return None
+    return value
+
+
 def parse_proposal(raw: str | None) -> MappingProposal:
     """Relit la réponse du modèle sans jamais laisser passer une invention.
 
@@ -61,7 +73,7 @@ def parse_proposal(raw: str | None) -> MappingProposal:
         proposed = tuple(
             FieldMapping(
                 target_field=str(item["target_field"]),
-                source_field=item.get("source_field"),
+                source_field=_normalized_source_field(item.get("source_field")),
                 confidence=item.get("confidence"),
                 note=item.get("note"),
             )
