@@ -20,11 +20,12 @@ Two core design rules:
 The AI provider is chosen via the `AI_PROVIDER` environment variable, in
 `backend/.env` (see `backend/.env.example`).
 
-| `AI_PROVIDER` | Use case                                         | Required variables                        |
-|----------------|---------------------------------------------------|--------------------------------------------|
-| `fake`         | Automated tests, no network call                  | none                                       |
-| `ollama`       | Local development, free, model runs on your machine | `AI_MODEL`, `AI_BASE_URL` (optional, defaults to `http://localhost:11434/v1`) |
-| `anthropic`    | Remote provider, paid                             | `AI_MODEL`, `AI_API_KEY`                   |
+| `AI_PROVIDER` | Use case                                              | Required variables                        |
+|----------------|--------------------------------------------------------|--------------------------------------------|
+| `fake`         | Automated tests, no network call                       | none                                       |
+| `ollama`       | Local development, free, model runs on your machine    | `AI_MODEL`, `AI_BASE_URL` (optional, defaults to `http://localhost:11434/v1`) |
+| `groq`         | Free cloud provider, OpenAI-compatible, no local install needed — lets anyone (teammates, reviewers) test the agent without running a model locally | `AI_MODEL`, `AI_API_KEY`, `AI_BASE_URL` (optional, defaults to `https://api.groq.com/openai/v1`) |
+| `anthropic`    | Remote provider, paid                                   | `AI_MODEL`, `AI_API_KEY`                   |
 
 By default (`AI_PROVIDER=fake`), no additional configuration is needed — this is what
 the automated tests use.
@@ -33,15 +34,15 @@ Neither the model id nor the key is written in the code. A real provider configu
 without `AI_MODEL` is refused at startup, with a message naming the variable to set —
 rather than silently falling back to a model that may not exist any more.
 
-### The two real providers ask the same question
+### The real providers ask the same question
 
-`infrastructure/llm/prompt.py` builds the prompt and reads the answer back for **both**
-Anthropic and Ollama. That is not line-saving: it is what makes the two providers
-comparable. A difference between their proposals comes from the model, not from a
-differently worded question.
+`infrastructure/llm/prompt.py` builds the prompt and reads the answer back for every
+real provider — Ollama, Groq and Anthropic. That is not line-saving: it is what makes
+the providers comparable. A difference between their proposals comes from the model, not
+from a differently worded question.
 
 The list of target fields in that prompt is read from
-`domain/mapping/contract.py` — the same list the import engine enforces. Copied into the
+`domain/mapping/contract.py` — the same list the import engine enforces. Copied into an
 adapter, it would drift, and the model would dutifully propose fields the engine rejects.
 A proposal aimed at a field outside the contract is dropped and reported in
 `unresolved_notes` rather than silently kept.
@@ -53,22 +54,48 @@ adapter raises `MappingProposalUnavailable` and the route answers **502**. Retur
 empty proposal instead would tell the user their file matches nothing, and they would go
 and fix the wrong problem.
 
-## Testing locally with Ollama (free)
+## Testing locally with Ollama (free, runs on your machine)
 
 1. Install [Ollama](https://ollama.com/)
 2. Download a model: `ollama pull llama3.2` (or `mistral`)
 3. In `backend/.env`:
 
-  ```dotenv
-  AI_PROVIDER=ollama
-  AI_MODEL=llama3.2
-  ```
+```dotenv
+AI_PROVIDER=ollama
+AI_MODEL=llama3.2
+AI_BASE_URL=http://localhost:11434/v1
+```
 
 4. Start the API: `uvicorn agentscope.main:app --reload`
 5. Call the route (see below)
 
-Two different local models (llama3.2 and mistral) were tested to confirm the agent
-stays interchangeable across models.
+## Testing with Groq (free, cloud-hosted)
+
+1. Create a free account at [console.groq.com](https://console.groq.com/) (no credit
+   card required) and generate an API key
+2. In `backend/.env`:
+
+```dotenv
+AI_PROVIDER=groq
+AI_MODEL=openai/gpt-oss-120b
+AI_API_KEY=<your Groq key>
+```
+
+3. Start the API and call the route the same way as with Ollama
+
+Groq exposes an OpenAI-compatible API, just like Ollama — only the endpoint, the
+credentials and the model catalog differ. Groq's model catalog changes over time; check
+[console.groq.com/docs/models](https://console.groq.com/docs/models) if `AI_MODEL`
+returns a "model not found" error.
+
+Two local models (llama3.2 and mistral) and two independent providers — one local
+(Ollama), one cloud-hosted (Groq) — were tested end-to-end (real API call, real
+response) to confirm the agent works with genuinely different configurations, not just
+different model names. Proposals aren't expected to be identical between providers:
+smaller local models can reason less reliably about field mapping than larger cloud
+models, and may occasionally return a response that isn't valid JSON. In that case the
+adapter reports it in `unresolved_notes` instead of crashing or guessing — the
+analyze → validate → import flow stays correct either way, which is what matters.
 
 ## HTTP routes
 
@@ -137,8 +164,8 @@ mapping individually.
    based on the value of `settings.ai_provider`, and add its name to `AI_PROVIDERS`
 3. No other file needs to change — that's the whole point of the port
 
-The Anthropic adapter is about forty lines, most of them the two failure cases. That is
-the measure of how much the port actually costs to extend.
+The Anthropic and Groq adapters are each about forty lines, most of them the failure
+case. That is the measure of how much the port actually costs to extend.
 
 ## Tests
 
@@ -148,6 +175,7 @@ the measure of how much the port actually costs to extend.
   answer — including a JSON reply wrapped in prose, an unreadable reply, and a proposal
   aimed at a field outside the contract
 - `tests/infrastructure/test_ollama_mapping_proposal.py`,
+  `tests/infrastructure/test_groq_mapping_proposal.py`,
   `tests/infrastructure/test_anthropic_mapping_proposal.py`: each adapter, with the
   model's response simulated (`monkeypatch`) — no network call, no key, runs in CI
 - `tests/infrastructure/test_composition_ai_provider.py`: the provider choice itself, and

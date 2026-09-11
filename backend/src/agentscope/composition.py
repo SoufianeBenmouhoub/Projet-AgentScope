@@ -1,12 +1,3 @@
-"""Racine de composition.
-
-**Le seul endroit du projet où les implémentations concrètes sont choisies.** Changer de
-moteur de stockage ou de fournisseur d'IA se joue ici, en une ligne, sans toucher aux
-règles métier.
-
-C'est aussi le seul module, avec `main.py`, autorisé à importer `infrastructure/`.
-"""
-
 from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker
@@ -32,6 +23,7 @@ from agentscope.application.use_cases.save_mapping import SaveMapping
 from agentscope.infrastructure.config.settings import Settings, get_settings
 from agentscope.infrastructure.llm.anthropic_api import AnthropicMappingProposal
 from agentscope.infrastructure.llm.fake import FakeMappingProposal
+from agentscope.infrastructure.llm.groq import GroqMappingProposal
 from agentscope.infrastructure.llm.ollama import OllamaMappingProposal
 from agentscope.infrastructure.normalization.record_normalizer import RecordNormalizer
 from agentscope.infrastructure.persistence.engine import build_engine
@@ -48,15 +40,16 @@ from agentscope.infrastructure.persistence.sqlalchemy_trace_writer import SQLAlc
 from agentscope.infrastructure.sources.duckdb_file_reader import DuckDBFileReader
 
 #: Les fournisseurs d'IA câblés, du plus autonome au plus distant.
-AI_PROVIDERS = ("fake", "ollama", "anthropic")
+AI_PROVIDERS = ("fake", "ollama", "groq", "anthropic")
 
 
 def build_mapping_proposal(settings: Settings) -> MappingProposalPort:
     """Choisit l'adaptateur IA à utiliser selon la configuration.
 
-    Deux fournisseurs réels, interchangeables sans toucher au code : un modèle local
-    (Ollama) et un modèle distant (Anthropic). La doublure « fake » reste la valeur par
-    défaut, pour qu'un clone du dépôt démarre et passe ses tests sans aucune clé.
+    Trois fournisseurs réels, interchangeables sans toucher au code : un modèle local
+    (Ollama) et deux modèles distants (Groq, Anthropic). La doublure « fake » reste la
+    valeur par défaut, pour qu'un clone du dépôt démarre et passe ses tests sans aucune
+    clé.
     """
     if settings.ai_provider == "fake":
         return FakeMappingProposal()
@@ -65,6 +58,15 @@ def build_mapping_proposal(settings: Settings) -> MappingProposalPort:
         return OllamaMappingProposal(
             model=_required_model(settings, "le nom du modèle téléchargé localement"),
             base_url=settings.ai_base_url or "http://localhost:11434/v1",
+        )
+
+    if settings.ai_provider == "groq":
+        if not settings.ai_api_key:
+            raise ValueError("AI_API_KEY est requis dans .env quand AI_PROVIDER=groq.")
+        return GroqMappingProposal(
+            model=_required_model(settings, "openai/gpt-oss-120b"),
+            api_key=settings.ai_api_key,
+            base_url=settings.ai_base_url or "https://api.groq.com/openai/v1",
         )
 
     if settings.ai_provider == "anthropic":
